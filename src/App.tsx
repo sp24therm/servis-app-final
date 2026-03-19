@@ -24,7 +24,11 @@ import {
   Info,
   Map as MapIcon,
   PieChart as PieChartIcon,
-  TrendingUp
+  TrendingUp,
+  Trash2,
+  Download,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -35,11 +39,18 @@ import {
   Tooltip as RechartsTooltip, 
   Legend,
   AreaChart,
-  Area
+  Area,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid
 } from 'recharts';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import SignatureCanvas from 'react-signature-canvas';
+import { generateServicePDF } from './utils/pdf';
+import MeasurementHistory from './components/MeasurementHistory';
 
 // Fix for default marker icons in Leaflet with Vite
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -74,7 +85,8 @@ import {
   updateDoc, 
   onSnapshot, 
   getDocFromServer,
-  Timestamp
+  Timestamp,
+  deleteDoc
 } from 'firebase/firestore';
 import { 
   ref, 
@@ -145,7 +157,7 @@ class ErrorBoundary extends Component<any, any> {
 
 const Login = ({ onLogin }: { onLogin: () => void }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -186,7 +198,7 @@ L.Icon.Default.mergeOptions({
 
 // --- Components ---
 
-const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (tab: string) => void }) => {
+const Sidebar = ({ activeTab, setActiveTab, isVisible }: { activeTab: string, setActiveTab: (tab: string) => void, isVisible: boolean }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Prehľad', icon: LayoutDashboard },
     { id: 'customers', label: 'Zákazníci', icon: Users },
@@ -194,11 +206,15 @@ const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab:
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-around items-center md:relative md:w-64 md:h-screen md:flex-col md:justify-start md:border-t-0 md:border-r md:pt-8 md:gap-2 z-[1001]">
+    <div className={`fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 px-6 py-1.5 flex justify-around items-center md:relative md:w-64 md:h-screen md:flex-col md:justify-start md:border-t-0 md:border-r md:pt-8 md:gap-2 z-[40] transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full md:translate-y-0'} md:bg-transparent md:border-r-white/10`}>
       <div className="hidden md:flex items-center gap-3 px-4 mb-8 w-full">
-        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
-          <Wrench size={24} />
-        </div>
+        <img 
+          src="/logo.png" 
+          onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/logo/200/200'; }}
+          alt="Logo" 
+          className="h-10 w-auto object-contain" 
+          referrerPolicy="no-referrer" 
+        />
         <span className="font-bold text-xl tracking-tight text-blue-900">Servis Plyn</span>
       </div>
       
@@ -206,18 +222,32 @@ const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab:
         <button
           key={item.id}
           onClick={() => setActiveTab(item.id)}
-          className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-4 py-2 md:w-full rounded-xl transition-all ${
+          className={`flex flex-col md:flex-row items-center gap-0.5 md:gap-3 px-4 py-1.5 md:w-full rounded-xl transition-all ${
             activeTab === item.id 
               ? 'text-blue-600 md:bg-blue-50' 
               : 'text-slate-400 hover:text-slate-600 md:hover:bg-slate-50'
           }`}
         >
-          <item.icon size={24} />
-          <span className="text-[10px] md:text-sm font-medium">{item.label}</span>
+          <item.icon size={20} className="md:w-6 md:h-6" />
+          <span className="text-[9px] md:text-sm font-medium">{item.label}</span>
         </button>
       ))}
     </div>
   );
+};
+
+const MapBounds = ({ boilers }: { boilers: Boiler[] }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    const validBoilers = boilers.filter(b => b.lat && b.lng);
+    if (validBoilers.length > 0) {
+      const bounds = L.latLngBounds(validBoilers.map(b => [b.lat!, b.lng!]));
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [boilers, map]);
+
+  return null;
 };
 
 const Dashboard = ({ 
@@ -232,6 +262,7 @@ const Dashboard = ({
   onSelectCustomer: (id: string) => void 
 }) => {
   const today = new Date();
+  const [filter, setFilter] = useState<'overdue' | 'upcoming' | 'ontime' | null>(null);
   
   const overdueBoilers = useMemo(() => {
     return boilers.filter(b => {
@@ -257,6 +288,13 @@ const Dashboard = ({
       return nextDate > today && diffMonths > 1;
     });
   }, [boilers, today]);
+
+  const filteredBoilers = useMemo(() => {
+    if (filter === 'overdue') return overdueBoilers;
+    if (filter === 'upcoming') return upcomingBoilers;
+    if (filter === 'ontime') return onTimeBoilers;
+    return [];
+  }, [filter, overdueBoilers, upcomingBoilers, onTimeBoilers]);
 
   const brandData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -302,27 +340,87 @@ const Dashboard = ({
 
       {/* Small cards at the top */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="card p-3 border-l-4 border-l-red-500">
+        <button 
+          onClick={() => setFilter(filter === 'overdue' ? null : 'overdue')}
+          className={`card p-3 border-l-4 transition-all text-left ${filter === 'overdue' ? 'border-l-red-600 bg-red-50 ring-2 ring-red-500/20' : 'border-l-red-500 hover:bg-slate-50'}`}
+        >
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Po termíne</span>
             <span className="text-xl font-bold text-red-600">{overdueBoilers.length}</span>
           </div>
-        </div>
+        </button>
         
-        <div className="card p-3 border-l-4 border-l-blue-500">
+        <button 
+          onClick={() => setFilter(filter === 'upcoming' ? null : 'upcoming')}
+          className={`card p-3 border-l-4 transition-all text-left ${filter === 'upcoming' ? 'border-l-blue-600 bg-blue-50 ring-2 ring-blue-500/20' : 'border-l-blue-500 hover:bg-slate-50'}`}
+        >
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Blížiace sa</span>
             <span className="text-xl font-bold text-blue-600">{upcomingBoilers.length}</span>
           </div>
-        </div>
+        </button>
 
-        <div className="card p-3 border-l-4 border-l-emerald-500">
+        <button 
+          onClick={() => setFilter(filter === 'ontime' ? null : 'ontime')}
+          className={`card p-3 border-l-4 transition-all text-left ${filter === 'ontime' ? 'border-l-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/20' : 'border-l-emerald-500 hover:bg-slate-50'}`}
+        >
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-slate-500 uppercase">V termíne</span>
             <span className="text-xl font-bold text-emerald-600">{onTimeBoilers.length}</span>
           </div>
-        </div>
+        </button>
       </div>
+
+      {/* Filtered List */}
+      <AnimatePresence>
+        {filter && (
+          <motion.section
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                {filter === 'overdue' && <AlertCircle size={20} className="text-red-500" />}
+                {filter === 'upcoming' && <Clock size={20} className="text-blue-500" />}
+                {filter === 'ontime' && <CheckCircle2 size={20} className="text-emerald-500" />}
+                {filter === 'overdue' ? 'Zariadenia po termíne' : filter === 'upcoming' ? 'Blížiace sa prehliadky' : 'Zariadenia v termíne'}
+              </h2>
+              <button onClick={() => setFilter(null)} className="text-xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">Zatvoriť</button>
+            </div>
+            <div className="space-y-3">
+              {filteredBoilers.map(boiler => {
+                const customer = customers.find(c => c.id === boiler.customerId);
+                return (
+                  <div 
+                    key={boiler.id} 
+                    onClick={() => onSelectCustomer(boiler.customerId)}
+                    className="card p-4 flex items-center justify-between hover:border-blue-200 hover:bg-blue-50/30 cursor-pointer transition-all group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-sm">
+                        {customer?.name.charAt(0)}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-sm">{customer?.name}</h3>
+                        <p className="text-xs text-slate-500">{boiler.brand} {boiler.model} • {boiler.address}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-[10px] font-bold uppercase ${filter === 'overdue' ? 'text-red-600' : filter === 'upcoming' ? 'text-blue-600' : 'text-emerald-600'}`}>
+                        {filter === 'overdue' ? 'Termín uplynul' : 'Nasledujúci termín'}
+                      </p>
+                      <p className="text-xs font-medium text-slate-600">{new Date(boiler.nextServiceDate!).toLocaleDateString('sk-SK')}</p>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-400 ml-4" />
+                  </div>
+                );
+              })}
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* Critical Inspections */}
       <section>
@@ -451,6 +549,7 @@ const Dashboard = ({
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
+            <MapBounds boilers={boilers} />
             {boilers.filter(b => b.lat && b.lng).map(boiler => (
               <Marker key={boiler.id} position={[boiler.lat!, boiler.lng!]}>
                 <Popup>
@@ -702,36 +801,21 @@ const CustomerList = ({
   customers, 
   boilers,
   onSelectCustomer,
-  onAddCustomer
+  onAddCustomer,
+  onEditCustomer
 }: { 
   customers: Customer[], 
   boilers: Boiler[],
   onSelectCustomer: (id: string) => void,
-  onAddCustomer: (customer: Omit<Customer, 'id'>, boiler?: Omit<Boiler, 'id' | 'customerId'>) => void
+  onAddCustomer: () => void,
+  onEditCustomer: (customer: Customer) => void
 }) => {
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
-  const [newCustomer, setNewCustomer] = useState({ name: '', company: '', phone: '', email: '', notes: '' });
-  const [addBoiler, setAddBoiler] = useState(true);
-  const [newBoiler, setNewBoiler] = useState({
-    name: 'Hlavný kotol',
-    address: '',
-    lat: 0,
-    lng: 0,
-    brand: '',
-    model: '',
-    serialNumber: '',
-    installDate: new Date().toISOString().split('T')[0],
-    notes: '',
-    photos: {}
-  });
 
-  useEffect(() => {
-    if (isModalOpen && modalRef.current) {
-      modalRef.current.scrollTop = 0;
-    }
-  }, [isModalOpen]);
+  const handleOpenEdit = (e: React.MouseEvent, customer: Customer) => {
+    e.stopPropagation();
+    onEditCustomer(customer);
+  };
 
   const filteredCustomers = customers.filter(c => {
     const searchLower = search.toLowerCase();
@@ -744,30 +828,11 @@ const CustomerList = ({
       hasMatchingBoilerBrand;
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onAddCustomer(newCustomer, addBoiler ? newBoiler : undefined);
-    setIsModalOpen(false);
-    setNewCustomer({ name: '', company: '', phone: '', email: '', notes: '' });
-    setNewBoiler({
-      name: 'Hlavný kotol',
-      address: '',
-      lat: 0,
-      lng: 0,
-      brand: '',
-      model: '',
-      serialNumber: '',
-      installDate: new Date().toISOString().split('T')[0],
-      notes: '',
-      photos: {}
-    });
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <header className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-900">Zákazníci</h1>
-        <button onClick={() => setIsModalOpen(true)} className="btn-primary">
+        <button onClick={onAddCustomer} className="btn-primary">
           <Plus size={20} />
           <span className="hidden sm:inline">Nový zákazník</span>
         </button>
@@ -777,8 +842,8 @@ const CustomerList = ({
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
         <input 
           type="text" 
-          placeholder="Hľadať..." 
-          className="input-field pl-14"
+          placeholder="Hľadať v zozname zákazníkov" 
+          className="input-field pl-12 text-right"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -827,101 +892,213 @@ const CustomerList = ({
                   </div>
                 </div>
               </div>
-              <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-400" />
+              <div className="flex items-center gap-2">
+                <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-400" />
+              </div>
             </div>
           );
         })}
       </div>
+    </div>
+  );
+};
 
-      {isModalOpen && (
-        <div ref={modalRef} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="card w-full max-w-2xl p-6 space-y-6"
-          >
-            <h2 className="text-xl font-bold text-slate-900">Nový zákazník</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-bold text-slate-700">Meno a priezvisko</label>
-                  <input 
-                    required
-                    type="text" 
-                    className="input-field" 
-                    value={newCustomer.name}
-                    onChange={e => setNewCustomer({...newCustomer, name: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-bold text-slate-700">Firma</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    value={newCustomer.company}
-                    onChange={e => setNewCustomer({...newCustomer, company: e.target.value})}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-bold text-slate-700">Telefón</label>
-                  <input 
-                    required
-                    type="tel" 
-                    className="input-field" 
-                    value={newCustomer.phone}
-                    onChange={e => setNewCustomer({...newCustomer, phone: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-bold text-slate-700">Email</label>
-                  <input 
-                    type="email" 
-                    className="input-field" 
-                    value={newCustomer.email}
-                    onChange={e => setNewCustomer({...newCustomer, email: e.target.value})}
-                  />
-                </div>
-              </div>
+const CustomerModal = ({ 
+  isOpen, 
+  onClose, 
+  onAdd, 
+  onUpdate,
+  onDelete,
+  editingCustomer,
+  customers,
+  boilers 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onAdd: (customer: Omit<Customer, 'id'>, boiler?: Omit<Boiler, 'id' | 'customerId'>) => void, 
+  onUpdate: (id: string, customer: Partial<Customer>) => void,
+  onDelete: (id: string) => void,
+  editingCustomer: Customer | null,
+  customers: Customer[],
+  boilers: Boiler[]
+}) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const [newCustomer, setNewCustomer] = useState({ name: '', company: '', phone: '', email: '', notes: '' });
+  const [addBoiler, setAddBoiler] = useState(true);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [newBoiler, setNewBoiler] = useState({
+    name: 'Hlavný kotol',
+    address: '',
+    lat: 0,
+    lng: 0,
+    brand: '',
+    model: '',
+    serialNumber: '',
+    installDate: new Date().toISOString().split('T')[0],
+    notes: '',
+    photos: {}
+  });
 
-              <div className="space-y-1">
-                <label className="text-sm font-bold text-slate-700">Poznámka</label>
-                <textarea 
-                  className="input-field min-h-[60px]" 
-                  value={newCustomer.notes}
-                  onChange={e => setNewCustomer({...newCustomer, notes: e.target.value})}
-                />
-              </div>
+  useEffect(() => {
+    if (isOpen) {
+      if (editingCustomer) {
+        setNewCustomer({
+          name: editingCustomer.name,
+          company: editingCustomer.company || '',
+          phone: editingCustomer.phone,
+          email: editingCustomer.email || '',
+          notes: editingCustomer.notes || ''
+        });
+        setAddBoiler(false);
+      } else {
+        setNewCustomer({ name: '', company: '', phone: '', email: '', notes: '' });
+        setAddBoiler(true);
+      }
+      setDuplicateError(null);
+    }
+  }, [isOpen, editingCustomer]);
 
-              <div className="flex items-center gap-2 py-2">
-                <input 
-                  type="checkbox" 
-                  id="add-boiler" 
-                  checked={addBoiler} 
-                  onChange={e => setAddBoiler(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-                <label htmlFor="add-boiler" className="text-sm font-bold text-slate-700 cursor-pointer">Pridať prvé zariadenie</label>
-              </div>
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setDuplicateError(null);
 
-              {addBoiler && (
-                <BoilerFormFields 
-                  boilerData={newBoiler} 
-                  setBoilerData={setNewBoiler} 
-                  existingBoilers={boilers} 
-                />
-              )}
+    // Duplicate check
+    const isDuplicate = customers.some(c => {
+      if (editingCustomer && c.id === editingCustomer.id) return false;
+      return (
+        c.name.toLowerCase() === newCustomer.name.toLowerCase() ||
+        (newCustomer.phone && c.phone === newCustomer.phone) ||
+        (newCustomer.email && c.email && c.email.toLowerCase() === newCustomer.email.toLowerCase())
+      );
+    });
 
-              <div className="flex gap-3 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary flex-1 justify-center">Zrušiť</button>
-                <button type="submit" className="btn-primary flex-1 justify-center">Uložiť zákazníka</button>
-              </div>
-            </form>
-          </motion.div>
+    if (isDuplicate) {
+      setDuplicateError('Zákazník s týmto menom, telefónom alebo emailom už existuje.');
+      return;
+    }
+
+    if (editingCustomer) {
+      onUpdate(editingCustomer.id, newCustomer);
+    } else {
+      onAdd(newCustomer, addBoiler ? newBoiler : undefined);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div ref={modalRef} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        className="card w-full max-w-2xl p-6 space-y-6"
+      >
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-slate-900">
+            {editingCustomer ? 'Upraviť zákazníka' : 'Nový zákazník'}
+          </h2>
+          {editingCustomer && (
+            <button 
+              type="button"
+              onClick={() => onDelete(editingCustomer.id)}
+              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+              title="Vymazať zákazníka"
+            >
+              <Trash2 size={20} />
+            </button>
+          )}
         </div>
-      )}
+
+        {duplicateError && (
+          <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-600 text-sm animate-in fade-in slide-in-from-top-2">
+            <AlertCircle size={18} />
+            {duplicateError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700">Meno a priezvisko</label>
+              <input 
+                required
+                type="text" 
+                className="input-field" 
+                value={newCustomer.name}
+                onChange={e => setNewCustomer({...newCustomer, name: e.target.value})}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700">Firma</label>
+              <input 
+                type="text" 
+                className="input-field" 
+                value={newCustomer.company}
+                onChange={e => setNewCustomer({...newCustomer, company: e.target.value})}
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700">Telefón</label>
+              <input 
+                required
+                type="tel" 
+                className="input-field" 
+                value={newCustomer.phone}
+                onChange={e => setNewCustomer({...newCustomer, phone: e.target.value})}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700">Email</label>
+              <input 
+                type="email" 
+                className="input-field" 
+                value={newCustomer.email}
+                onChange={e => setNewCustomer({...newCustomer, email: e.target.value})}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-bold text-slate-700">Poznámka</label>
+            <textarea 
+              className="input-field min-h-[60px]" 
+              value={newCustomer.notes}
+              onChange={e => setNewCustomer({...newCustomer, notes: e.target.value})}
+            />
+          </div>
+
+          {!editingCustomer && (
+            <div className="flex items-center gap-2 py-2">
+              <input 
+                type="checkbox" 
+                id="add-boiler" 
+                checked={addBoiler} 
+                onChange={e => setAddBoiler(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded"
+              />
+              <label htmlFor="add-boiler" className="text-sm font-bold text-slate-700 cursor-pointer">Pridať prvé zariadenie</label>
+            </div>
+          )}
+
+          {!editingCustomer && addBoiler && (
+            <BoilerFormFields 
+              boilerData={newBoiler} 
+              setBoilerData={setNewBoiler} 
+              existingBoilers={boilers} 
+            />
+          )}
+
+          <div className="flex gap-3 pt-4 border-t border-slate-100">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Zrušiť</button>
+            <button type="submit" className="btn-primary flex-1 justify-center">
+              {editingCustomer ? 'Uložiť zmeny' : 'Vytvoriť zákazníka'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
     </div>
   );
 };
@@ -929,14 +1106,29 @@ const CustomerList = ({
 const ServiceDetailModal = ({ 
   service, 
   boiler, 
+  customer,
   onClose,
   onEdit
 }: { 
   service: ServiceRecord, 
   boiler: Boiler, 
+  customer: Customer,
   onClose: () => void,
   onEdit: () => void
 }) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    setIsGenerating(true);
+    try {
+      await generateServicePDF(service, boiler, customer);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
       <motion.div 
@@ -953,17 +1145,36 @@ const ServiceDetailModal = ({
                 {new Date(service.date).toLocaleDateString('sk-SK')} • {boiler.brand} {boiler.model}
               </p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
-              <ArrowLeft size={24} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleDownloadPDF} 
+                disabled={isGenerating}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors flex items-center gap-2 text-xs font-bold"
+                title="Stiahnuť PDF"
+              >
+                {isGenerating ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Download size={18} />
+                )}
+                PDF
+              </button>
+              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                <ArrowLeft size={24} />
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-3 gap-6">
             <div className="space-y-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase">CO2 Hodnota</p>
               <p className="text-lg font-bold text-slate-700">{service.co2Value}%</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">CO</p>
+              <p className="text-lg font-bold text-slate-700">{service.coValue} ppm</p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase">Tlak</p>
@@ -979,6 +1190,7 @@ const ServiceDetailModal = ({
                   {[
                     { label: 'CO2 Max', val: service.co2Max, unit: '%' },
                     { label: 'CO2 Min', val: service.co2Min, unit: '%' },
+                    { label: 'CO', val: service.coValue, unit: ' ppm' },
                     { label: 'O2 Max', val: service.o2Max, unit: '%' },
                     { label: 'O2 Min', val: service.o2Min, unit: '%' },
                     { label: 'Účinnosť', val: service.efficiency, unit: '%' },
@@ -1090,6 +1302,7 @@ const CustomerDetail = ({
   onAddService,
   onAddBoiler,
   onEditBoiler,
+  onEditCustomer,
   onSelectService
 }: { 
   customer: Customer, 
@@ -1099,13 +1312,19 @@ const CustomerDetail = ({
   onAddService: (boilerId: string) => void,
   onAddBoiler: (customerId: string) => void,
   onEditBoiler: (boilerId: string) => void,
+  onEditCustomer: (customer: Customer) => void,
   onSelectService: (serviceId: string) => void
 }) => {
   const customerBoilers = boilers.filter(b => b.customerId === customer.id);
   const [expandedBoilers, setExpandedBoilers] = useState<Record<string, boolean>>({});
+  const [showHistory, setShowHistory] = useState<Record<string, boolean>>({});
 
   const toggleExpand = (boilerId: string) => {
     setExpandedBoilers(prev => ({ ...prev, [boilerId]: !prev[boilerId] }));
+  };
+
+  const toggleHistory = (boilerId: string) => {
+    setShowHistory(prev => ({ ...prev, [boilerId]: !prev[boilerId] }));
   };
 
   const handleNavigate = (address: string) => {
@@ -1119,7 +1338,7 @@ const CustomerDetail = ({
         Späť
       </button>
 
-      <div className="card p-6 bg-gradient-to-br from-blue-600 to-blue-800 text-white border-none">
+      <div className="card p-6 bg-gradient-to-br from-blue-600 to-blue-800 text-white border-none relative overflow-hidden">
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold">{customer.name}</h1>
@@ -1137,7 +1356,7 @@ const CustomerDetail = ({
               )}
             </div>
           </div>
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm shrink-0">
             <Users size={32} />
           </div>
         </div>
@@ -1146,6 +1365,15 @@ const CustomerDetail = ({
             {customer.notes}
           </div>
         )}
+        <div className="mt-6 pt-4 border-t border-white/10 flex justify-end">
+          <button 
+            onClick={() => onEditCustomer(customer)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur-sm transition-all text-sm font-bold"
+          >
+            <PenTool size={18} />
+            Upraviť údaje zákazníka
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -1273,7 +1501,30 @@ const CustomerDetail = ({
                       {boilerServices.length}
                     </span>
                   </h4>
+                  <button 
+                    onClick={() => toggleHistory(boiler.id)}
+                    className="text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+                  >
+                    {showHistory[boiler.id] ? (
+                      <>Skryť grafy <ChevronUp size={12} /></>
+                    ) : (
+                      <>História meraní <ChevronDown size={12} /></>
+                    )}
+                  </button>
                 </div>
+                
+                <AnimatePresence>
+                  {showHistory[boiler.id] && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="mb-6 overflow-hidden"
+                    >
+                      <MeasurementHistory services={boilerServices} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 
                 <div className="space-y-2">
                   {visibleServices.length > 0 ? (
@@ -1384,6 +1635,7 @@ const ServiceForm = ({
     date: initialData?.date || new Date().toISOString().split('T')[0],
     taskPerformed: initialData?.taskPerformed || 'Ročná prehliadka',
     co2Value: initialData?.co2Value || 9.2,
+    coValue: initialData?.coValue || 0,
     pressureValue: initialData?.pressureValue || 1.5,
     technicianNotes: initialData?.technicianNotes || '',
     // Detailed fields
@@ -1501,7 +1753,7 @@ const ServiceForm = ({
         </div>
 
         {formData.taskPerformed !== 'Ročná prehliadka' && (
-          <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-300">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in duration-300">
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">CO2 Hodnota (%)</label>
               <input 
@@ -1510,6 +1762,16 @@ const ServiceForm = ({
                 className="input-field"
                 value={formData.co2Value}
                 onChange={(e) => setFormData({...formData, co2Value: parseFloat(e.target.value)})}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700">CO (ppm)</label>
+              <input 
+                type="number" 
+                step="1" 
+                className="input-field"
+                value={formData.coValue}
+                onChange={(e) => setFormData({...formData, coValue: parseInt(e.target.value)})}
               />
             </div>
             <div className="space-y-2">
@@ -1542,18 +1804,22 @@ const ServiceForm = ({
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.co2Min} onChange={e => setFormData({...formData, co2Min: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">CO (ppm)</label>
+                  <input type="number" step="1" className="input-field py-1.5" value={formData.coValue} onChange={e => setFormData({...formData, coValue: parseInt(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Účinnosť (%)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.efficiency} onChange={e => setFormData({...formData, efficiency: parseFloat(e.target.value)})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">O2 Max (%)</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.o2Max} onChange={e => setFormData({...formData, o2Max: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">O2 Min (%)</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.o2Min} onChange={e => setFormData({...formData, o2Min: parseFloat(e.target.value)})} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Účinnosť (%)</label>
-                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.efficiency} onChange={e => setFormData({...formData, efficiency: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">Tlak plynu (mbar)</label>
@@ -1885,6 +2151,50 @@ const ServicesList = ({
   );
 };
 
+// --- Delete Confirmation Modal ---
+
+const DeleteConfirmModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  title, 
+  message 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onConfirm: () => void,
+  title: string,
+  message: string
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="card w-full max-w-md p-6 space-y-6"
+      >
+        <div className="flex items-center gap-4 text-red-600">
+          <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
+            <AlertCircle size={24} />
+          </div>
+          <h2 className="text-xl font-bold">{title}</h2>
+        </div>
+        
+        <p className="text-slate-600">{message}</p>
+
+        <div className="flex gap-3 pt-4">
+          <button onClick={onClose} className="btn-secondary flex-1 justify-center">Zrušiť</button>
+          <button onClick={onConfirm} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 flex-1 justify-center">
+            Odstrániť
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 // --- Main App ---
 
 export default function App() {
@@ -1896,7 +2206,31 @@ export default function App() {
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [editingBoilerId, setEditingBoilerId] = useState<string | null>(null);
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
-  
+  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [customerToDeleteId, setCustomerToDeleteId] = useState<string | null>(null);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  // Scroll to hide sidebar logic
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+        setIsSidebarVisible(false);
+      } else {
+        setIsSidebarVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const [isBoilerModalOpen, setIsBoilerModalOpen] = useState(false);
+
   const [data, setData] = useState<{
     customers: Customer[],
     boilers: Boiler[],
@@ -1906,7 +2240,8 @@ export default function App() {
     boilers: [],
     services: []
   });
-  const [isBoilerModalOpen, setIsBoilerModalOpen] = useState(false);
+
+  const shouldShowSidebar = isSidebarVisible && !isCustomerModalOpen && !isBoilerModalOpen && !isDeleteConfirmOpen;
   const [newBoilerData, setNewBoilerData] = useState({
     name: 'Hlavný kotol',
     address: '',
@@ -2068,8 +2403,60 @@ export default function App() {
         };
         await setDoc(doc(db, 'boilers', boilerId), boiler);
       }
+
+      setIsCustomerModalOpen(false);
+      setEditingCustomerId(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'customers/boilers');
+    }
+  };
+
+  const handleUpdateCustomer = async (id: string, customerData: Partial<Customer>) => {
+    try {
+      const customerRef = doc(db, 'customers', id);
+      await updateDoc(customerRef, customerData);
+      setIsCustomerModalOpen(false);
+      setEditingCustomerId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'customers');
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string) => {
+    setCustomerToDeleteId(id);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteCustomer = async () => {
+    if (!customerToDeleteId) return;
+
+    try {
+      // Delete customer
+      await deleteDoc(doc(db, 'customers', customerToDeleteId));
+      
+      // Delete associated boilers
+      const customerBoilers = data.boilers.filter(b => b.customerId === customerToDeleteId);
+      for (const boiler of customerBoilers) {
+        await deleteDoc(doc(db, 'boilers', boiler.id));
+        
+        // Delete associated services
+        const boilerServices = data.services.filter(s => s.boilerId === boiler.id);
+        for (const service of boilerServices) {
+          await deleteDoc(doc(db, 'services', service.id));
+        }
+      }
+
+      setIsDeleteConfirmOpen(false);
+      setCustomerToDeleteId(null);
+      setIsCustomerModalOpen(false);
+      setEditingCustomerId(null);
+      
+      if (selectedCustomerId === customerToDeleteId) {
+        setSelectedCustomerId(null);
+        setActiveTab('customers');
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'customers/boilers/services');
     }
   };
 
@@ -2146,7 +2533,14 @@ export default function App() {
             customers={data.customers} 
             boilers={data.boilers}
             onSelectCustomer={handleSelectCustomer} 
-            onAddCustomer={handleAddCustomer}
+            onAddCustomer={() => {
+              setEditingCustomerId(null);
+              setIsCustomerModalOpen(true);
+            }}
+            onEditCustomer={(c) => {
+              setEditingCustomerId(c.id);
+              setIsCustomerModalOpen(true);
+            }}
           />
         );
       case 'services':
@@ -2171,6 +2565,10 @@ export default function App() {
             onAddService={handleAddService}
             onAddBoiler={() => { setEditingBoilerId(null); setIsBoilerModalOpen(true); }}
             onEditBoiler={handleEditBoiler}
+            onEditCustomer={(c) => {
+              setEditingCustomerId(c.id);
+              setIsCustomerModalOpen(true);
+            }}
             onSelectService={setSelectedServiceId}
           />
         );
@@ -2193,7 +2591,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
           <p className="text-slate-500 font-medium">Načítavam aplikáciu...</p>
@@ -2208,11 +2606,36 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
-        <Sidebar activeTab={activeTab === 'customerDetail' || activeTab === 'serviceForm' ? 'customers' : activeTab} setActiveTab={setActiveTab} />
+      <div className="min-h-screen flex flex-col md:flex-row">
+        <Sidebar 
+          activeTab={activeTab === 'customerDetail' || activeTab === 'serviceForm' ? 'customers' : activeTab} 
+          setActiveTab={setActiveTab} 
+          isVisible={shouldShowSidebar}
+        />
         
-        <main className="flex-1 p-4 sm:p-6 md:p-10 pb-24 md:pb-10 max-w-5xl mx-auto w-full overflow-y-auto">
-          <div className="flex justify-end mb-4 md:mb-0 md:absolute md:top-6 md:right-10">
+        <main className="flex-1 p-4 sm:p-6 md:p-10 pb-24 md:pb-10 max-w-5xl mx-auto w-full overflow-y-auto relative">
+          {/* Mobile Logo Visibility */}
+          <div className="md:hidden flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <img 
+                src="/logo.png" 
+                onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/logo/200/200'; }}
+                alt="Logo" 
+                className="h-8 w-auto object-contain" 
+                referrerPolicy="no-referrer" 
+              />
+              <span className="text-blue-600 font-bold text-lg">Servis Plyn</span>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="p-2 text-slate-500 hover:text-slate-700 transition-colors"
+              title="Odhlásiť sa"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          </div>
+
+          <div className="hidden md:flex justify-end md:absolute md:top-6 md:right-10">
             <button 
               onClick={handleLogout}
               className="flex items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors text-sm font-medium"
@@ -2265,6 +2688,7 @@ export default function App() {
           <ServiceDetailModal 
             service={data.services.find(s => s.id === selectedServiceId)!}
             boiler={data.boilers.find(b => b.id === data.services.find(s => s.id === selectedServiceId)?.boilerId)!}
+            customer={data.customers.find(c => c.id === data.boilers.find(b => b.id === data.services.find(s => s.id === selectedServiceId)?.boilerId)?.customerId)!}
             onClose={() => setSelectedServiceId(null)}
             onEdit={() => {
               handleEditService(selectedServiceId);
@@ -2272,6 +2696,33 @@ export default function App() {
             }}
           />
         )}
+
+        {/* Customer Modal */}
+        <CustomerModal 
+          isOpen={isCustomerModalOpen}
+          onClose={() => {
+            setIsCustomerModalOpen(false);
+            setEditingCustomerId(null);
+          }}
+          onAdd={handleAddCustomer}
+          onUpdate={handleUpdateCustomer}
+          onDelete={handleDeleteCustomer}
+          editingCustomer={editingCustomerId ? data.customers.find(c => c.id === editingCustomerId) || null : null}
+          customers={data.customers}
+          boilers={data.boilers}
+        />
+
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmModal 
+          isOpen={isDeleteConfirmOpen}
+          onClose={() => {
+            setIsDeleteConfirmOpen(false);
+            setCustomerToDeleteId(null);
+          }}
+          onConfirm={confirmDeleteCustomer}
+          title="Odstrániť zákazníka"
+          message="Naozaj chcete odstrániť tohto zákazníka? Táto akcia odstráni aj všetky jeho zariadenia a servisné záznamy a je nevratná."
+        />
       </main>
     </div>
     </ErrorBoundary>

@@ -1,0 +1,99 @@
+import React from 'react';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  Legend 
+} from 'recharts';
+import { ServiceRecord } from '../types';
+import { TrendingUp, Activity, Droplets } from 'lucide-react';
+
+interface MeasurementHistoryProps {
+  services: ServiceRecord[];
+}
+
+const MeasurementHistory = ({ services }: { services: ServiceRecord[] }) => {
+  const sortedServices = [...services].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  
+  const data = sortedServices.map(s => ({
+    date: new Date(s.date).toLocaleDateString('sk-SK'),
+    co2Max: s.co2Max || s.co2Value || 0,
+    co2Min: s.co2Min || 0,
+    co: s.coValue || 0,
+    o2Max: s.o2Max || 0,
+    o2Min: s.o2Min || 0,
+    efficiency: s.efficiency || 0,
+    ph: s.phCH || 0,
+    conductivity: s.conductivity || 0,
+    hardness: s.hardnessCH || 0,
+  }));
+
+  if (data.length === 0) {
+    return (
+      <div className="p-8 text-center text-slate-400 italic bg-white rounded-2xl border border-slate-100">
+        Žiadne historické dáta pre grafy.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Combustion Analysis */}
+      <div className="card p-4">
+        <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <TrendingUp size={18} className="text-blue-500" />
+          Analýza spalín (CO2, O2, Účinnosť)
+        </h3>
+        <div className="h-[250px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="date" fontSize={10} tick={{ fill: '#94a3b8' }} />
+              <YAxis fontSize={10} tick={{ fill: '#94a3b8' }} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+              />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+              <Line type="monotone" dataKey="co2Max" name="CO2 Max (%)" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="co" name="CO (ppm)" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="efficiency" name="Účinnosť (%)" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="o2Max" name="O2 Max (%)" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Chemical Values */}
+      <div className="card p-4">
+        <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <Droplets size={18} className="text-emerald-500" />
+          Chemické hodnoty ÚK (pH, Tvrdosť, Vodivosť)
+        </h3>
+        <div className="h-[250px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="date" fontSize={10} tick={{ fill: '#94a3b8' }} />
+              <YAxis fontSize={10} tick={{ fill: '#94a3b8' }} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+              />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+              <Line type="monotone" dataKey="ph" name="pH" stroke="#059669" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="hardness" name="Tvrdosť (°dH)" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="conductivity" name="Vodivosť (mS/cm)" stroke="#ec4899" strokeWidth={2} strokeDasharray="3 3" dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MeasurementHistory;

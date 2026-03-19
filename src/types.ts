@@ -10,6 +10,7 @@ export interface ServiceRecord {
   date: string;
   taskPerformed: string;
   co2Value: number;
+  coValue?: number; // CO value in ppm
   pressureValue: number;
   status: ServiceStatus;
   technicianNotes?: string;

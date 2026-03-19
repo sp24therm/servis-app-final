@@ -8,7 +8,16 @@
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 font-sans;
+  @apply text-slate-900 font-sans;
+  background-image: url('/wall2.jpg'), url('https://picsum.photos/seed/boiler/1920/1080?blur=4');
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  background-color: transparent;
+}
+
+#root {
+  background: transparent;
 }
 
 .card {
