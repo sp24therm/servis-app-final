@@ -1,0 +1,7 @@
+{
+  "name": "Servis Plyn",
+  "description": "Profesionálny systém na správu servisu plynových kotlov pre technikov.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
