@@ -93,7 +93,7 @@ import {
   uploadBytes, 
   getDownloadURL 
 } from 'firebase/storage';
-import { Customer, Boiler, ServiceRecord, ServiceStatus } from './types';
+import { AppState, Customer, Boiler, ServiceRecord, ServiceStatus, Contact } from './types';
 
 // --- Error Boundary ---
 
@@ -131,13 +131,13 @@ class ErrorBoundary extends Component<any, any> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-[#121212] p-4">
           <div className="card max-w-md w-full p-8 text-center space-y-4">
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+            <div className="w-16 h-16 bg-[#C14F4F]/20 text-[#C14F4F] rounded-full flex items-center justify-center mx-auto">
               <AlertCircle size={32} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900">Ups! Niečo sa pokazilo</h2>
-            <p className="text-slate-600">{errorMessage}</p>
+            <h2 className="text-xl font-bold text-white">Ups! Niečo sa pokazilo</h2>
+            <p className="text-white/60">{errorMessage}</p>
             <button 
               onClick={() => window.location.reload()} 
               className="btn-primary w-full justify-center"
@@ -164,22 +164,22 @@ const Login = ({ onLogin }: { onLogin: () => void }) => {
         className="card max-w-md w-full p-8 text-center space-y-8"
       >
         <div className="space-y-2">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto shadow-lg shadow-blue-200">
+          <div className="w-16 h-16 bg-[#3A87AD] rounded-2xl flex items-center justify-center text-white mx-auto shadow-lg shadow-[#3A87AD]/20">
             <Wrench size={32} />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-blue-900 pt-4">Servis Plyn</h1>
-          <p className="text-slate-500">Prihláste sa pre prístup k správe zákazníkov a servisných záznamov.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-[#3A87AD] pt-4">SP Therm s.r.o.</h1>
+          <p className="text-white/60">Prihláste sa pre prístup k správe zákazníkov a servisných záznamov.</p>
         </div>
 
         <button 
           onClick={onLogin}
-          className="w-full flex items-center justify-center gap-3 bg-white border border-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white font-semibold py-3 px-4 rounded-xl hover:bg-white/10 transition-all shadow-sm active:scale-[0.98]"
         >
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
           Prihlásiť sa cez Google
         </button>
 
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-white/40">
           Všetky dáta sú synchronizované v reálnom čase pre váš tím.
         </p>
       </motion.div>
@@ -203,19 +203,20 @@ const Sidebar = ({ activeTab, setActiveTab, isVisible }: { activeTab: string, se
     { id: 'dashboard', label: 'Prehľad', icon: LayoutDashboard },
     { id: 'customers', label: 'Zákazníci', icon: Users },
     { id: 'services', label: 'Zásahy', icon: History },
+    { id: 'contacts', label: 'Kontakty', icon: Phone },
   ];
 
   return (
-    <div className={`fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 px-6 py-1.5 flex justify-around items-center md:relative md:w-64 md:h-screen md:flex-col md:justify-start md:border-t-0 md:border-r md:pt-8 md:gap-2 z-[40] transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full md:translate-y-0'} md:bg-transparent md:border-r-white/10`}>
+    <div className={`fixed bottom-0 left-0 right-0 bg-[#121212] backdrop-blur-md border-t border-white/5 px-6 py-1.5 flex justify-around items-center md:relative md:w-64 md:h-screen md:flex-col md:justify-start md:border-t-0 md:border-r md:pt-8 md:gap-2 z-[40] transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full md:translate-y-0'} md:bg-transparent md:border-r-white/10`}>
       <div className="hidden md:flex items-center gap-3 px-4 mb-8 w-full">
         <img 
-          src="/logo.png" 
+          src="/image_4.png" 
           onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/logo/200/200'; }}
           alt="Logo" 
           className="h-10 w-auto object-contain" 
           referrerPolicy="no-referrer" 
         />
-        <span className="font-bold text-xl tracking-tight text-blue-900">Servis Plyn</span>
+        <span className="font-bold text-xl tracking-tight text-[#3A87AD]">SP Therm s.r.o.</span>
       </div>
       
       {menuItems.map((item) => (
@@ -224,8 +225,8 @@ const Sidebar = ({ activeTab, setActiveTab, isVisible }: { activeTab: string, se
           onClick={() => setActiveTab(item.id)}
           className={`flex flex-col md:flex-row items-center gap-0.5 md:gap-3 px-4 py-1.5 md:w-full rounded-xl transition-all ${
             activeTab === item.id 
-              ? 'text-blue-600 md:bg-blue-50' 
-              : 'text-slate-400 hover:text-slate-600 md:hover:bg-slate-50'
+              ? 'text-[#3A87AD] md:bg-[#3A87AD]/10' 
+              : 'text-white/40 hover:text-white/60 md:hover:bg-white/5'
           }`}
         >
           <item.icon size={20} className="md:w-6 md:h-6" />
@@ -329,12 +330,12 @@ const Dashboard = ({
     <div className="space-y-6 animate-in fade-in duration-500">
       <header className="flex justify-between items-end">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dobrý deň!</h1>
-          <p className="text-slate-500">Tu je prehľad dnešných úloh.</p>
+          <h1 className="text-2xl font-bold text-white">Dobrý deň!</h1>
+          <p className="text-white/60">Tu je prehľad dnešných úloh.</p>
         </div>
         <div className="text-right hidden sm:block">
-          <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">Dnes</p>
-          <p className="text-lg font-bold text-slate-700">{today.toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="text-sm font-medium text-white/40 uppercase tracking-wider">Dnes</p>
+          <p className="text-lg font-bold text-white/80">{today.toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
       </header>
 
@@ -342,31 +343,31 @@ const Dashboard = ({
       <div className="grid grid-cols-3 gap-3">
         <button 
           onClick={() => setFilter(filter === 'overdue' ? null : 'overdue')}
-          className={`card p-3 border-l-4 transition-all text-left ${filter === 'overdue' ? 'border-l-red-600 bg-red-50 ring-2 ring-red-500/20' : 'border-l-red-500 hover:bg-slate-50'}`}
+          className={`card p-3 border-l-4 transition-all text-left ${filter === 'overdue' ? 'border-l-[#C14F4F] bg-[#C14F4F]/10 ring-2 ring-[#C14F4F]/20' : 'border-l-[#C14F4F]/50 hover:bg-white/5'}`}
         >
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Po termíne</span>
-            <span className="text-xl font-bold text-red-600">{overdueBoilers.length}</span>
+            <span className="text-[10px] font-bold text-white/40 uppercase">Po termíne</span>
+            <span className="text-xl font-bold text-[#C14F4F]">{overdueBoilers.length}</span>
           </div>
         </button>
         
         <button 
           onClick={() => setFilter(filter === 'upcoming' ? null : 'upcoming')}
-          className={`card p-3 border-l-4 transition-all text-left ${filter === 'upcoming' ? 'border-l-blue-600 bg-blue-50 ring-2 ring-blue-500/20' : 'border-l-blue-500 hover:bg-slate-50'}`}
+          className={`card p-3 border-l-4 transition-all text-left ${filter === 'upcoming' ? 'border-l-[#3A87AD] bg-[#3A87AD]/10 ring-2 ring-[#3A87AD]/20' : 'border-l-[#3A87AD]/50 hover:bg-white/5'}`}
         >
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Blížiace sa</span>
-            <span className="text-xl font-bold text-blue-600">{upcomingBoilers.length}</span>
+            <span className="text-[10px] font-bold text-white/40 uppercase">Blížiace sa</span>
+            <span className="text-xl font-bold text-[#3A87AD]">{upcomingBoilers.length}</span>
           </div>
         </button>
 
         <button 
           onClick={() => setFilter(filter === 'ontime' ? null : 'ontime')}
-          className={`card p-3 border-l-4 transition-all text-left ${filter === 'ontime' ? 'border-l-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/20' : 'border-l-emerald-500 hover:bg-slate-50'}`}
+          className={`card p-3 border-l-4 transition-all text-left ${filter === 'ontime' ? 'border-l-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/20' : 'border-l-emerald-500/50 hover:bg-white/5'}`}
         >
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">V termíne</span>
-            <span className="text-xl font-bold text-emerald-600">{onTimeBoilers.length}</span>
+            <span className="text-[10px] font-bold text-white/40 uppercase">V termíne</span>
+            <span className="text-xl font-bold text-emerald-500">{onTimeBoilers.length}</span>
           </div>
         </button>
       </div>
@@ -381,13 +382,13 @@ const Dashboard = ({
             className="overflow-hidden"
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                {filter === 'overdue' && <AlertCircle size={20} className="text-red-500" />}
-                {filter === 'upcoming' && <Clock size={20} className="text-blue-500" />}
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                {filter === 'overdue' && <AlertCircle size={20} className="text-[#C14F4F]" />}
+                {filter === 'upcoming' && <Clock size={20} className="text-[#3A87AD]" />}
                 {filter === 'ontime' && <CheckCircle2 size={20} className="text-emerald-500" />}
                 {filter === 'overdue' ? 'Zariadenia po termíne' : filter === 'upcoming' ? 'Blížiace sa prehliadky' : 'Zariadenia v termíne'}
               </h2>
-              <button onClick={() => setFilter(null)} className="text-xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">Zatvoriť</button>
+              <button onClick={() => setFilter(null)} className="text-xs font-bold text-white/40 hover:text-white/60 uppercase tracking-widest">Zatvoriť</button>
             </div>
             <div className="space-y-3">
               {filteredBoilers.map(boiler => {
@@ -396,24 +397,24 @@ const Dashboard = ({
                   <div 
                     key={boiler.id} 
                     onClick={() => onSelectCustomer(boiler.customerId)}
-                    className="card p-4 flex items-center justify-between hover:border-blue-200 hover:bg-blue-50/30 cursor-pointer transition-all group"
+                    className="card p-4 flex items-center justify-between hover:border-[#3A87AD]/30 hover:bg-[#3A87AD]/5 cursor-pointer transition-all group"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-sm">
+                      <div className="w-10 h-10 bg-white/5 text-white/60 rounded-full flex items-center justify-center font-bold text-sm">
                         {customer?.name.charAt(0)}
                       </div>
                       <div>
-                        <h3 className="font-bold text-slate-900 text-sm">{customer?.name}</h3>
-                        <p className="text-xs text-slate-500">{boiler.brand} {boiler.model} • {boiler.address}</p>
+                        <h3 className="font-bold text-white text-sm">{customer?.name}</h3>
+                        <p className="text-xs text-white/40">{boiler.brand} {boiler.model} • {boiler.address}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={`text-[10px] font-bold uppercase ${filter === 'overdue' ? 'text-red-600' : filter === 'upcoming' ? 'text-blue-600' : 'text-emerald-600'}`}>
+                      <p className={`text-[10px] font-bold uppercase ${filter === 'overdue' ? 'text-[#C14F4F]' : filter === 'upcoming' ? 'text-[#3A87AD]' : 'text-emerald-500'}`}>
                         {filter === 'overdue' ? 'Termín uplynul' : 'Nasledujúci termín'}
                       </p>
-                      <p className="text-xs font-medium text-slate-600">{new Date(boiler.nextServiceDate!).toLocaleDateString('sk-SK')}</p>
+                      <p className="text-xs font-medium text-white/60">{new Date(boiler.nextServiceDate!).toLocaleDateString('sk-SK')}</p>
                     </div>
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-400 ml-4" />
+                    <ChevronRight size={16} className="text-white/20 group-hover:text-[#3A87AD] ml-4" />
                   </div>
                 );
               })}
@@ -424,8 +425,8 @@ const Dashboard = ({
 
       {/* Critical Inspections */}
       <section>
-        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <AlertCircle size={20} className="text-red-500" />
+        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <AlertCircle size={20} className="text-[#C14F4F]" />
           Kritické prehliadky
         </h2>
         <div className="space-y-3">
@@ -436,27 +437,27 @@ const Dashboard = ({
                 <div 
                   key={boiler.id} 
                   onClick={() => onSelectCustomer(boiler.customerId)}
-                  className="card p-4 flex items-center justify-between hover:border-red-200 hover:bg-red-50/30 cursor-pointer transition-all group"
+                  className="card p-4 flex items-center justify-between hover:border-[#C14F4F]/30 hover:bg-[#C14F4F]/5 cursor-pointer transition-all group"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center font-bold">
+                    <div className="w-12 h-12 bg-[#C14F4F]/10 text-[#C14F4F] rounded-full flex items-center justify-center font-bold">
                       {customer?.name.charAt(0)}
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900">{customer?.name}</h3>
-                      <p className="text-sm text-slate-500">{boiler.brand} {boiler.model} • {boiler.address}</p>
+                      <h3 className="font-bold text-white">{customer?.name}</h3>
+                      <p className="text-sm text-white/40">{boiler.brand} {boiler.model} • {boiler.address}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-bold text-red-600 uppercase">Termín uplynul</p>
-                    <p className="text-sm font-medium text-slate-600">{new Date(boiler.nextServiceDate!).toLocaleDateString('sk-SK')}</p>
+                    <p className="text-xs font-bold text-[#C14F4F] uppercase">Termín uplynul</p>
+                    <p className="text-sm font-medium text-white/60">{new Date(boiler.nextServiceDate!).toLocaleDateString('sk-SK')}</p>
                   </div>
-                  <ChevronRight size={20} className="text-slate-300 group-hover:text-red-400 ml-4" />
+                  <ChevronRight size={20} className="text-white/20 group-hover:text-[#C14F4F] ml-4" />
                 </div>
               );
             })
           ) : (
-            <div className="card p-8 text-center text-slate-400 italic">
+            <div className="card p-8 text-center text-white/20 italic">
               Žiadne prehliadky po termíne. Skvelá práca!
             </div>
           )}
@@ -467,13 +468,13 @@ const Dashboard = ({
         {/* Brand Distribution */}
         <div className="card p-6 relative">
           <div className="flex justify-between items-start mb-4">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <PieChartIcon size={20} className="text-blue-500" />
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <PieChartIcon size={20} className="text-[#3A87AD]" />
               Zastúpenie značiek
             </h2>
             <div className="text-right">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Celkom kotlov</p>
-              <p className="text-xl font-bold text-blue-600">{boilers.length}</p>
+              <p className="text-[10px] font-bold text-white/40 uppercase">Celkom kotlov</p>
+              <p className="text-xl font-bold text-[#3A87AD]">{boilers.length}</p>
             </div>
           </div>
           <div className="h-[300px] w-full">
@@ -493,7 +494,8 @@ const Dashboard = ({
                   ))}
                 </Pie>
                 <RechartsTooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ backgroundColor: '#1E1E1E', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
+                  itemStyle={{ color: '#E0E0E0' }}
                   formatter={(value: number, name: string) => [value, name.split(' (')[0]]}
                 />
                 <Legend verticalAlign="bottom" height={36}/>
@@ -504,8 +506,8 @@ const Dashboard = ({
 
         {/* Service Type Distribution */}
         <div className="card p-6">
-          <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <History size={20} className="text-blue-500" />
+          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <History size={20} className="text-[#3A87AD]" />
             Typy zásahov (%)
           </h2>
           <div className="h-[300px] w-full">
@@ -526,7 +528,8 @@ const Dashboard = ({
                   ))}
                 </Pie>
                 <RechartsTooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ backgroundColor: '#1E1E1E', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
+                  itemStyle={{ color: '#E0E0E0' }}
                 />
                 <Legend verticalAlign="bottom" height={36}/>
               </PieChart>
@@ -537,14 +540,14 @@ const Dashboard = ({
 
       {/* Map moved to bottom */}
       <div className="card p-0 overflow-hidden min-h-[350px]">
-        <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <MapIcon size={20} className="text-blue-500" />
+        <div className="p-4 border-b border-white/5 flex justify-between items-center">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <MapIcon size={20} className="text-[#3A87AD]" />
             Mapa inštalácií
           </h2>
         </div>
         <div className="h-[350px] w-full relative z-0">
-          <MapContainer center={[48.6690, 19.6990]} zoom={7} style={{ height: '100%', width: '100%' }}>
+          <MapContainer center={[48.6690, 19.6990]} zoom={7} style={{ height: '100%', width: '100%' }} className="dark-map">
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -558,7 +561,7 @@ const Dashboard = ({
                     <p className="text-xs text-slate-500 mb-2">{boiler.address}</p>
                     <button 
                       onClick={() => onSelectCustomer(boiler.customerId)}
-                      className="text-xs font-bold text-blue-600 hover:underline"
+                      className="text-xs font-bold text-[#3A87AD] hover:underline"
                     >
                       Zobraziť zákazníka
                     </button>
@@ -615,12 +618,12 @@ const AddressSearch = ({ value, onChange, onSelect }: { value: string, onChange:
         onBlur={() => setTimeout(() => setResults([]), 200)}
       />
       {results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[110] max-h-[200px] overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-[#1E1E1E] border border-white/10 rounded-xl shadow-2xl z-[110] max-h-[200px] overflow-y-auto backdrop-blur-md">
           {results.map((r, i) => (
             <button
               key={i}
               type="button"
-              className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm border-b border-slate-100 last:border-0"
+              className="w-full text-left px-4 py-2 hover:bg-white/5 text-sm border-b border-white/5 last:border-0 text-white/80 transition-colors"
               onClick={() => {
                 setIgnoreNext(true);
                 onSelect(r.display_name, parseFloat(r.lat), parseFloat(r.lon));
@@ -648,6 +651,10 @@ const BoilerFormFields = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activePhotoType, setActivePhotoType] = useState<string | null>(null);
 
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const scannerInputRef = useRef<HTMLInputElement>(null);
+
   const brands = useMemo(() => Array.from(new Set(existingBoilers.map(b => b.brand))), [existingBoilers]);
   const modelsForBrand = useMemo(() => {
     if (!boilerData.brand) return [];
@@ -662,30 +669,55 @@ const BoilerFormFields = ({
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && activePhotoType) {
+      const type = activePhotoType; // Capture current type
+      // Create local preview immediately
+      const previewUrl = URL.createObjectURL(file);
+      setPreviews(prev => ({ ...prev, [type]: previewUrl }));
+      setUploading(prev => ({ ...prev, [type]: true }));
+      
       try {
         const storageRef = ref(storage, `boilers/${Date.now()}_${file.name}`);
         const snapshot = await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(snapshot.ref);
-        setBoilerData({
-          ...boilerData,
-          photos: { ...boilerData.photos, [activePhotoType]: downloadURL }
-        });
+        
+        setBoilerData((prev: any) => ({
+          ...prev,
+          photos: { ...(prev.photos || {}), [type]: downloadURL }
+        }));
       } catch (error) {
         console.error("Upload failed", error);
+        alert("Nahrávanie fotky zlyhalo. Skúste to prosím znova.");
+      } finally {
+        setUploading(prev => ({ ...prev, [type]: false }));
       }
     }
   };
 
+  const handleScanClick = () => {
+    scannerInputRef.current?.click();
+  };
+
+  const onScanFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // This is a placeholder for OCR, but it opens the camera as requested
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log("Scanner image captured:", file.name);
+      // In a real app, you'd use Tesseract.js or similar here
+      alert("Fotka sériového čísla bola zachytená. Pre automatické čítanie textu je potrebná OCR knižnica.");
+    }
+  };
+
   return (
-    <div className="space-y-4 pt-4 border-t border-slate-100">
-      <h3 className="font-bold text-blue-600 flex items-center gap-2">
+    <div className="space-y-4 pt-4 border-t border-white/5">
+      <h3 className="font-bold text-[#3A87AD] flex items-center gap-2">
         <Wrench size={18} /> Údaje o zariadení
       </h3>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-bold text-slate-700">Meno zariadenia</label>
+          <label className="text-sm font-bold text-white/70">Meno zariadenia</label>
           <input 
+            required
             type="text" 
             className="input-field" 
             value={boilerData.name}
@@ -693,7 +725,7 @@ const BoilerFormFields = ({
           />
         </div>
         <div className="space-y-1">
-          <label className="text-sm font-bold text-slate-700">Adresa inštalácie</label>
+          <label className="text-sm font-bold text-white/70">Adresa inštalácie</label>
           <AddressSearch 
             value={boilerData.address} 
             onChange={v => setBoilerData({...boilerData, address: v})}
@@ -704,7 +736,7 @@ const BoilerFormFields = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1 relative">
-          <label className="text-sm font-bold text-slate-700">Značka</label>
+          <label className="text-sm font-bold text-white/70">Značka</label>
           <input 
             type="text" 
             className="input-field" 
@@ -717,7 +749,7 @@ const BoilerFormFields = ({
           </datalist>
         </div>
         <div className="space-y-1 relative">
-          <label className="text-sm font-bold text-slate-700">Model</label>
+          <label className="text-sm font-bold text-white/70">Model</label>
           <input 
             type="text" 
             className="input-field" 
@@ -733,7 +765,7 @@ const BoilerFormFields = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-bold text-slate-700">Sériové číslo</label>
+          <label className="text-sm font-bold text-white/70">Sériové číslo</label>
           <div className="flex gap-2">
             <input 
               type="text" 
@@ -741,13 +773,26 @@ const BoilerFormFields = ({
               value={boilerData.serialNumber}
               onChange={e => setBoilerData({...boilerData, serialNumber: e.target.value})}
             />
-            <button type="button" className="p-2 bg-slate-100 rounded-xl hover:bg-slate-200 text-slate-600" title="Skenovať">
+            <input 
+              type="file" 
+              ref={scannerInputRef} 
+              className="hidden" 
+              accept="image/*" 
+              capture="environment"
+              onChange={onScanFileChange}
+            />
+            <button 
+              type="button" 
+              onClick={handleScanClick}
+              className="p-2 bg-white/5 rounded-xl hover:bg-white/10 text-white/60" 
+              title="Skenovať"
+            >
               <Camera size={20} />
             </button>
           </div>
         </div>
         <div className="space-y-1">
-          <label className="text-sm font-bold text-slate-700">Dátum montáže</label>
+          <label className="text-sm font-bold text-white/70">Dátum montáže</label>
           <input 
             type="date" 
             className="input-field" 
@@ -767,18 +812,33 @@ const BoilerFormFields = ({
         />
         {['overall', 'connection', 'chimney'].map(type => (
           <div key={type} className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase">
+            <label className="text-[10px] font-bold text-white/40 uppercase">
               {type === 'overall' ? 'Celkové' : type === 'connection' ? 'Napojenie' : 'Komín'}
             </label>
             <button 
               type="button"
               onClick={() => handlePhotoClick(type)}
-              className="w-full aspect-square bg-slate-50 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden"
+              disabled={uploading[type]}
+              className="w-full aspect-square bg-white/5 border border-dashed border-white/10 rounded-xl flex items-center justify-center overflow-hidden relative group"
             >
-              {boilerData.photos?.[type] ? (
-                <img src={boilerData.photos[type]} className="w-full h-full object-cover" />
+              {previews[type] || boilerData.photos?.[type] ? (
+                <>
+                  <img src={previews[type] || boilerData.photos[type]} className="w-full h-full object-cover" />
+                  {uploading[type] && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <div className="w-6 h-6 border-2 border-[#3A87AD]/30 border-t-[#3A87AD] rounded-full animate-spin" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <Camera size={20} className="text-white" />
+                  </div>
+                </>
               ) : (
-                <Camera size={20} className="text-slate-300" />
+                uploading[type] ? (
+                  <div className="w-6 h-6 border-2 border-[#3A87AD]/30 border-t-[#3A87AD] rounded-full animate-spin" />
+                ) : (
+                  <Camera size={20} className="text-white/20" />
+                )
               )}
             </button>
           </div>
@@ -786,7 +846,7 @@ const BoilerFormFields = ({
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm font-bold text-slate-700">Poznámka k zariadeniu</label>
+        <label className="text-sm font-bold text-white/70">Poznámka k zariadeniu</label>
         <textarea 
           className="input-field min-h-[60px]" 
           value={boilerData.notes}
@@ -821,29 +881,104 @@ const CustomerList = ({
     const searchLower = search.toLowerCase();
     const customerBoilers = boilers.filter(b => b.customerId === c.id);
     const hasMatchingBoilerBrand = customerBoilers.some(b => b.brand.toLowerCase().includes(searchLower));
+    const hasMatchingBoilerModel = customerBoilers.some(b => b.model.toLowerCase().includes(searchLower));
     
     return c.name.toLowerCase().includes(searchLower) || 
       c.phone.includes(search) ||
       (c.company && c.company.toLowerCase().includes(searchLower)) ||
-      hasMatchingBoilerBrand;
+      hasMatchingBoilerBrand ||
+      hasMatchingBoilerModel;
   });
+
+  const customerTrendData = useMemo(() => {
+    const months = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      months.push({
+        name: d.toLocaleString('sk-SK', { month: 'short' }),
+        month: d.getMonth(),
+        year: d.getFullYear()
+      });
+    }
+
+    return months.map(m => {
+      const count = customers.filter(c => {
+        if (!c.createdAt) return false;
+        const createdDate = new Date(c.createdAt);
+        return createdDate.getMonth() === m.month && createdDate.getFullYear() === m.year;
+      }).length;
+      return { name: m.name, value: count };
+    });
+  }, [customers]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <header className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-900">Zákazníci</h1>
+        <h1 className="text-2xl font-bold text-white">Zákazníci</h1>
         <button onClick={onAddCustomer} className="btn-primary">
           <Plus size={20} />
           <span className="hidden sm:inline">Nový zákazník</span>
         </button>
       </header>
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card p-6 md:col-span-2">
+          <div className="flex justify-between items-start mb-4">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <TrendingUp size={20} className="text-[#3A87AD]" />
+              Prírastok zákazníkov (12m)
+            </h2>
+          </div>
+          <div className="h-[150px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={customerTrendData}>
+                <defs>
+                  <linearGradient id="colorCust" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3A87AD" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3A87AD" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+                />
+                <YAxis hide />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: '#1E1E1E', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}
+                  itemStyle={{ color: '#3A87AD' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#3A87AD" 
+                  fillOpacity={1} 
+                  fill="url(#colorCust)" 
+                  strokeWidth={3}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <div className="card p-6 flex flex-col justify-center items-center text-center">
+          <p className="text-sm font-bold text-white/40 uppercase tracking-wider mb-1">Celkový počet zákazníkov</p>
+          <p className="text-5xl font-bold text-[#3A87AD]">{customers.length}</p>
+          <div className="mt-4 flex items-center gap-2 text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full text-xs font-bold">
+            <TrendingUp size={14} />
+            <span>Aktívne rastúce</span>
+          </div>
+        </div>
+      </div>
+
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={20} />
         <input 
           type="text" 
           placeholder="Hľadať v zozname zákazníkov" 
-          className="input-field pl-12 text-right"
+          className="input-field pl-12"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -858,20 +993,20 @@ const CustomerList = ({
             <div 
               key={customer.id} 
               onClick={() => onSelectCustomer(customer.id)}
-              className="card p-4 flex items-center justify-between hover:border-blue-200 hover:bg-blue-50/30 cursor-pointer transition-all group"
+              className="card p-4 flex items-center justify-between hover:border-[#3A87AD]/30 hover:bg-[#3A87AD]/5 cursor-pointer transition-all group"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold">
+                <div className="w-12 h-12 bg-white/5 text-white/60 rounded-full flex items-center justify-center font-bold">
                   {customer.name.charAt(0)}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-slate-900 leading-tight">{customer.name}</h3>
-                    {mainBoiler && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-bold uppercase">{mainBoiler.brand}</span>}
+                    <h3 className="font-bold text-white leading-tight">{customer.name}</h3>
+                    {mainBoiler && <span className="text-[10px] bg-[#3A87AD]/10 text-[#3A87AD] px-1.5 py-0.5 rounded-md font-bold uppercase">{mainBoiler.brand}</span>}
                   </div>
-                  {customer.company && <p className="text-xs text-slate-400 mt-0.5">{customer.company}</p>}
+                  {customer.company && <p className="text-xs text-white/40 mt-0.5">{customer.company}</p>}
                   
-                  <div className="flex items-center gap-3 text-sm text-slate-500 mt-1">
+                  <div className="flex items-center gap-3 text-sm text-white/60 mt-1">
                     <span className="flex items-center gap-1"><Phone size={14} /> {customer.phone}</span>
                     <div className="flex gap-1">
                       {customerBoilers.map(b => {
@@ -883,7 +1018,7 @@ const CustomerList = ({
                           >
                             <CheckCircle2 
                               size={14} 
-                              className={isOverdue ? 'text-red-500' : 'text-emerald-500'} 
+                              className={isOverdue ? 'text-[#C14F4F]' : 'text-emerald-500'} 
                             />
                           </span>
                         );
@@ -893,7 +1028,7 @@ const CustomerList = ({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-400" />
+                <ChevronRight size={20} className="text-white/20 group-hover:text-[#3A87AD]" />
               </div>
             </div>
           );
@@ -952,7 +1087,19 @@ const CustomerModal = ({
         setAddBoiler(false);
       } else {
         setNewCustomer({ name: '', company: '', phone: '', email: '', notes: '' });
-        setAddBoiler(true);
+        setAddBoiler(false);
+        setNewBoiler({
+          name: 'Hlavný kotol',
+          address: '',
+          lat: 0,
+          lng: 0,
+          brand: '',
+          model: '',
+          serialNumber: '',
+          installDate: new Date().toISOString().split('T')[0],
+          notes: '',
+          photos: {}
+        });
       }
       setDuplicateError(null);
     }
@@ -987,21 +1134,21 @@ const CustomerModal = ({
   if (!isOpen) return null;
 
   return (
-    <div ref={modalRef} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
+    <div ref={modalRef} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
       <motion.div 
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         className="card w-full max-w-2xl p-6 space-y-6"
       >
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-slate-900">
+          <h2 className="text-xl font-bold text-white">
             {editingCustomer ? 'Upraviť zákazníka' : 'Nový zákazník'}
           </h2>
           {editingCustomer && (
             <button 
               type="button"
               onClick={() => onDelete(editingCustomer.id)}
-              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+              className="p-2 text-white/40 hover:text-[#C14F4F] hover:bg-[#C14F4F]/10 rounded-xl transition-all"
               title="Vymazať zákazníka"
             >
               <Trash2 size={20} />
@@ -1010,7 +1157,7 @@ const CustomerModal = ({
         </div>
 
         {duplicateError && (
-          <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-600 text-sm animate-in fade-in slide-in-from-top-2">
+          <div className="p-3 bg-[#C14F4F]/10 border border-[#C14F4F]/20 rounded-xl flex items-center gap-3 text-[#C14F4F] text-sm animate-in fade-in slide-in-from-top-2">
             <AlertCircle size={18} />
             {duplicateError}
           </div>
@@ -1019,7 +1166,7 @@ const CustomerModal = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-700">Meno a priezvisko</label>
+              <label className="text-sm font-bold text-white/70">Meno a priezvisko</label>
               <input 
                 required
                 type="text" 
@@ -1029,7 +1176,7 @@ const CustomerModal = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-700">Firma</label>
+              <label className="text-sm font-bold text-white/70">Firma</label>
               <input 
                 type="text" 
                 className="input-field" 
@@ -1041,7 +1188,7 @@ const CustomerModal = ({
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-700">Telefón</label>
+              <label className="text-sm font-bold text-white/70">Telefón</label>
               <input 
                 required
                 type="tel" 
@@ -1051,7 +1198,7 @@ const CustomerModal = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-bold text-slate-700">Email</label>
+              <label className="text-sm font-bold text-white/70">Email</label>
               <input 
                 type="email" 
                 className="input-field" 
@@ -1062,7 +1209,7 @@ const CustomerModal = ({
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-bold text-slate-700">Poznámka</label>
+            <label className="text-sm font-bold text-white/70">Poznámka</label>
             <textarea 
               className="input-field min-h-[60px]" 
               value={newCustomer.notes}
@@ -1077,9 +1224,9 @@ const CustomerModal = ({
                 id="add-boiler" 
                 checked={addBoiler} 
                 onChange={e => setAddBoiler(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded"
+                className="w-4 h-4 text-[#3A87AD] rounded bg-black/40 border-white/10"
               />
-              <label htmlFor="add-boiler" className="text-sm font-bold text-slate-700 cursor-pointer">Pridať prvé zariadenie</label>
+              <label htmlFor="add-boiler" className="text-sm font-bold text-white/70 cursor-pointer">Pridať prvé zariadenie</label>
             </div>
           )}
 
@@ -1091,7 +1238,7 @@ const CustomerModal = ({
             />
           )}
 
-          <div className="flex gap-3 pt-4 border-t border-slate-100">
+          <div className="flex gap-3 pt-4 border-t border-white/5">
             <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Zrušiť</button>
             <button type="submit" className="btn-primary flex-1 justify-center">
               {editingCustomer ? 'Uložiť zmeny' : 'Vytvoriť zákazníka'}
@@ -1130,18 +1277,18 @@ const ServiceDetailModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
       <motion.div 
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         className="card w-full max-w-2xl p-0 overflow-hidden"
       >
-        <div className="bg-blue-600 p-6 text-white">
+        <div className="bg-[#3A87AD] p-6 text-white">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-blue-100 text-xs font-bold uppercase tracking-widest mb-1">Detail zásahu</p>
+              <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">Detail zásahu</p>
               <h2 className="text-2xl font-bold">{service.taskPerformed}</h2>
-              <p className="text-blue-100 text-sm mt-1">
+              <p className="text-white/80 text-sm mt-1">
                 {new Date(service.date).toLocaleDateString('sk-SK')} • {boiler.brand} {boiler.model}
               </p>
             </div>
@@ -1169,23 +1316,23 @@ const ServiceDetailModal = ({
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-3 gap-6">
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">CO2 Hodnota</p>
-              <p className="text-lg font-bold text-slate-700">{service.co2Value}%</p>
+              <p className="text-[10px] font-bold text-white/40 uppercase">CO2 Hodnota</p>
+              <p className="text-lg font-bold text-white">{service.co2Value}%</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">CO</p>
-              <p className="text-lg font-bold text-slate-700">{service.coValue} ppm</p>
+              <p className="text-[10px] font-bold text-white/40 uppercase">CO</p>
+              <p className="text-lg font-bold text-white">{service.coValue} ppm</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Tlak</p>
-              <p className="text-lg font-bold text-slate-700">{service.pressureValue} bar</p>
+              <p className="text-[10px] font-bold text-white/40 uppercase">Tlak</p>
+              <p className="text-lg font-bold text-white">{service.pressureValue} bar</p>
             </div>
           </div>
 
           {service.taskPerformed === 'Ročná prehliadka' && (
             <div className="space-y-6 animate-in fade-in duration-500">
-              <div className="bg-slate-50 p-4 rounded-2xl space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Analýza spalín a tlaky</h3>
+              <div className="bg-white/5 p-4 rounded-2xl space-y-4 border border-white/5">
+                <h3 className="text-xs font-bold text-white/40 uppercase tracking-wider">Analýza spalín a tlaky</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {[
                     { label: 'CO2 Max', val: service.co2Max, unit: '%' },
@@ -1199,15 +1346,15 @@ const ServiceDetailModal = ({
                     { label: 'Tlak exp. TÚV', val: service.expansionTankPressureDHW, unit: ' bar', show: service.hasDHWExpansionTank },
                   ].map(item => (item.show !== false && (
                     <div key={item.label}>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">{item.label}</p>
-                      <p className="text-sm font-bold text-slate-700">{item.val ?? '-'}{item.unit}</p>
+                      <p className="text-[10px] font-bold text-white/40 uppercase">{item.label}</p>
+                      <p className="text-sm font-bold text-white">{item.val ?? '-'}{item.unit}</p>
                     </div>
                   )))}
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-2xl space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Chemické hodnoty ÚK</h3>
+              <div className="bg-white/5 p-4 rounded-2xl space-y-4 border border-white/5">
+                <h3 className="text-xs font-bold text-white/40 uppercase tracking-wider">Chemické hodnoty ÚK</h3>
                 <div className="grid grid-cols-3 gap-4">
                   {[
                     { label: 'Konduktivita', val: service.conductivity, unit: ' mS/cm' },
@@ -1215,15 +1362,15 @@ const ServiceDetailModal = ({
                     { label: 'Tvrdosť ÚK', val: service.hardnessCH, unit: ' °dH' },
                   ].map(item => (
                     <div key={item.label}>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">{item.label}</p>
-                      <p className="text-sm font-bold text-slate-700">{item.val ?? '-'}{item.unit}</p>
+                      <p className="text-[10px] font-bold text-white/40 uppercase">{item.label}</p>
+                      <p className="text-sm font-bold text-white">{item.val ?? '-'}{item.unit}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-2xl space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Kontrolný zoznam</h3>
+              <div className="bg-white/5 p-4 rounded-2xl space-y-4 border border-white/5">
+                <h3 className="text-xs font-bold text-white/40 uppercase tracking-wider">Kontrolný zoznam</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                   {[
                     { key: 'burnerCheck', label: 'Kontrola horáka' },
@@ -1242,11 +1389,11 @@ const ServiceDetailModal = ({
                     { key: 'bondingProtection', label: 'Ochrana pospojovaním' },
                   ].map(item => (
                     <div key={item.key} className="flex items-center justify-between">
-                      <span className="text-xs text-slate-600">{item.label}</span>
+                      <span className="text-xs text-white/60">{item.label}</span>
                       {service[item.key as keyof ServiceRecord] ? (
                         <CheckCircle2 size={14} className="text-emerald-500" />
                       ) : (
-                        <AlertCircle size={14} className="text-red-400" />
+                        <AlertCircle size={14} className="text-[#C14F4F]" />
                       )}
                     </div>
                   ))}
@@ -1257,8 +1404,8 @@ const ServiceDetailModal = ({
 
           {service.technicianNotes && (
             <div className="space-y-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Poznámky technika</p>
-              <div className="p-4 bg-slate-50 rounded-2xl text-slate-600 text-sm italic border border-slate-100">
+              <p className="text-[10px] font-bold text-white/40 uppercase">Poznámky technika</p>
+              <div className="p-4 bg-white/5 rounded-2xl text-white/60 text-sm italic border border-white/5">
                 {service.technicianNotes}
               </div>
             </div>
@@ -1266,8 +1413,8 @@ const ServiceDetailModal = ({
 
           {service.photo && (
             <div className="space-y-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Fotodokumentácia</p>
-              <div className="aspect-video rounded-2xl overflow-hidden border border-slate-200">
+              <p className="text-[10px] font-bold text-white/40 uppercase">Fotodokumentácia</p>
+              <div className="aspect-video rounded-2xl overflow-hidden border border-white/10">
                 <img src={service.photo} alt="Service" className="w-full h-full object-cover" />
               </div>
             </div>
@@ -1275,16 +1422,16 @@ const ServiceDetailModal = ({
 
           {service.signature && (
             <div className="space-y-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Podpis zákazníka</p>
-              <div className="aspect-video bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-4">
+              <p className="text-[10px] font-bold text-white/40 uppercase">Podpis zákazníka</p>
+              <div className="aspect-video bg-white p-4 rounded-2xl border border-white/10 flex items-center justify-center">
                 <img src={service.signature} alt="Signature" className="max-w-full max-h-full object-contain mix-blend-multiply" />
               </div>
             </div>
           )}
 
-          <div className="pt-6 border-t border-slate-100 flex gap-3">
+          <div className="pt-6 border-t border-white/5 flex gap-3">
             <button onClick={onClose} className="btn-secondary flex-1 justify-center">Zavrieť</button>
-            <button onClick={onEdit} className="btn-primary flex-1 justify-center bg-amber-500 hover:bg-amber-600 border-amber-500 shadow-amber-100">
+            <button onClick={onEdit} className="btn-primary flex-1 justify-center bg-amber-500 hover:bg-amber-600 border-amber-500 shadow-amber-500/20">
               <PenTool size={18} /> Upraviť záznam
             </button>
           </div>
@@ -1338,18 +1485,27 @@ const CustomerDetail = ({
         Späť
       </button>
 
-      <div className="card p-6 bg-gradient-to-br from-blue-600 to-blue-800 text-white border-none relative overflow-hidden">
+      <div className="card p-6 bg-[#3A87AD] text-white border-none relative overflow-hidden">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold">{customer.name}</h1>
-            {customer.company && <p className="text-blue-100 font-medium">{customer.company}</p>}
+            <div className="flex items-center gap-3 group">
+              <h1 className="text-3xl font-bold">{customer.name}</h1>
+              <button 
+                onClick={() => onEditCustomer(customer)}
+                className="p-1.5 text-white/40 hover:text-white transition-colors rounded-lg"
+                title="Upraviť údaje"
+              >
+                <PenTool size={18} />
+              </button>
+            </div>
+            {customer.company && <p className="text-white/80 font-medium">{customer.company}</p>}
             <div className="mt-4 space-y-2">
-              <a href={`tel:${customer.phone}`} className="flex items-center gap-2 text-blue-100 hover:text-white transition-colors">
+              <a href={`tel:${customer.phone}`} className="flex items-center gap-2 text-white/80 hover:text-white transition-colors">
                 <Phone size={18} />
                 {customer.phone}
               </a>
               {customer.email && (
-                <p className="flex items-center gap-2 text-blue-100">
+                <p className="flex items-center gap-2 text-white/80">
                   <Info size={18} />
                   {customer.email}
                 </p>
@@ -1365,21 +1521,12 @@ const CustomerDetail = ({
             {customer.notes}
           </div>
         )}
-        <div className="mt-6 pt-4 border-t border-white/10 flex justify-end">
-          <button 
-            onClick={() => onEditCustomer(customer)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur-sm transition-all text-sm font-bold"
-          >
-            <PenTool size={18} />
-            Upraviť údaje zákazníka
-          </button>
-        </div>
       </div>
 
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-slate-800">Zariadenia</h2>
-          <button onClick={() => onAddBoiler(customer.id)} className="text-blue-600 font-medium flex items-center gap-1 hover:underline">
+          <h2 className="text-xl font-bold text-white">Zariadenia</h2>
+          <button onClick={() => onAddBoiler(customer.id)} className="text-[#3A87AD] font-medium flex items-center gap-1 hover:underline">
             <Plus size={18} /> Pridať zariadenie
           </button>
         </div>
@@ -1393,39 +1540,39 @@ const CustomerDetail = ({
           const visibleServices = isExpanded ? boilerServices : boilerServices.slice(0, 3);
 
           return (
-            <div key={boiler.id} className="card p-0 shadow-sm overflow-hidden">
+            <div key={boiler.id} className="card p-0 overflow-hidden">
               <div className="p-4">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-base font-bold text-slate-900">{boiler.name}</h3>
+                      <h3 className="text-base font-bold text-white">{boiler.name}</h3>
                       <button 
                         onClick={() => handleNavigate(boiler.address)}
-                        className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                        className="p-1.5 bg-[#3A87AD]/10 text-[#3A87AD] rounded-lg hover:bg-[#3A87AD] hover:text-white transition-colors"
                         title="Navigovať"
                       >
                         <MapPin size={14} />
                       </button>
                     </div>
-                    <p className="text-xs text-blue-600 font-medium mt-0.5">
+                    <p className="text-xs text-[#3A87AD] font-medium mt-0.5">
                       {boiler.address}
                     </p>
                   </div>
                   <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    isOverdue ? 'bg-red-100 text-red-600' : isWarning ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'
+                    isOverdue ? 'bg-[#C14F4F]/20 text-[#C14F4F]' : isWarning ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/20 text-emerald-500'
                   }`}>
                     {isOverdue ? 'Termín' : isWarning ? 'Blíži sa' : 'OK'}
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 mt-4 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="grid grid-cols-2 gap-4 mt-4 p-3 bg-white/5 rounded-2xl border border-white/5">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Posledný</p>
-                    <p className="text-sm font-bold text-slate-700">{boiler.lastServiceDate ? new Date(boiler.lastServiceDate).toLocaleDateString('sk-SK') : '-'}</p>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Posledný</p>
+                    <p className="text-sm font-bold text-white">{boiler.lastServiceDate ? new Date(boiler.lastServiceDate).toLocaleDateString('sk-SK') : '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nasledujúci</p>
-                    <p className={`text-sm font-black ${isOverdue ? 'text-red-600' : 'text-blue-600'}`}>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Nasledujúci</p>
+                    <p className={`text-sm font-black ${isOverdue ? 'text-[#C14F4F]' : 'text-[#3A87AD]'}`}>
                       {boiler.nextServiceDate ? new Date(boiler.nextServiceDate).toLocaleDateString('sk-SK') : '-'}
                     </p>
                   </div>
@@ -1439,24 +1586,24 @@ const CustomerDetail = ({
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+                      <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Značka / Model</p>
-                            <p className="text-xs font-medium text-slate-700">{boiler.brand} {boiler.model}</p>
+                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Značka / Model</p>
+                            <p className="text-xs font-medium text-white/80">{boiler.brand} {boiler.model}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sériové číslo</p>
-                            <p className="text-xs font-medium text-slate-700">{boiler.serialNumber}</p>
+                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Sériové číslo</p>
+                            <p className="text-xs font-medium text-white/80">{boiler.serialNumber}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dátum montáže</p>
-                            <p className="text-xs font-medium text-slate-700">{new Date(boiler.installDate).toLocaleDateString('sk-SK')}</p>
+                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Dátum montáže</p>
+                            <p className="text-xs font-medium text-white/80">{new Date(boiler.installDate).toLocaleDateString('sk-SK')}</p>
                           </div>
                           <div className="flex items-end justify-end">
                             <button 
                               onClick={() => onEditBoiler(boiler.id)}
-                              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors"
+                              className="flex items-center gap-2 px-3 py-1.5 bg-white/5 text-white/60 rounded-xl text-xs font-bold hover:bg-white/10 hover:text-white transition-colors"
                             >
                               <PenTool size={14} />
                               Upraviť údaje
@@ -1464,7 +1611,7 @@ const CustomerDetail = ({
                           </div>
                         </div>
                         {boiler.notes && (
-                          <div className="p-3 bg-amber-50 rounded-xl text-xs text-amber-800 border border-amber-100">
+                          <div className="p-3 bg-amber-500/10 rounded-xl text-xs text-amber-500 border border-amber-500/20">
                             <p className="font-bold uppercase text-[9px] mb-1 opacity-60 tracking-widest">Poznámka k zariadeniu</p>
                             {boiler.notes}
                           </div>
@@ -1477,7 +1624,7 @@ const CustomerDetail = ({
                 <div className="mt-4 flex gap-2">
                   <button 
                     onClick={() => onAddService(boiler.id)}
-                    className="btn-primary flex-1 justify-center py-2.5 text-sm shadow-md shadow-blue-100"
+                    className="btn-primary flex-1 justify-center py-2.5 text-sm shadow-md shadow-[#3A87AD]/20"
                   >
                     <Wrench size={16} />
                     Vykonať servis
@@ -1485,7 +1632,7 @@ const CustomerDetail = ({
                   <button 
                     onClick={() => toggleExpand(boiler.id)}
                     className={`p-2.5 rounded-xl border transition-all ${
-                      isExpanded ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-white border-slate-200 text-slate-400 hover:border-blue-200 hover:text-blue-600'
+                      isExpanded ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-white/10 text-white/40 hover:border-[#3A87AD]/50 hover:text-[#3A87AD]'
                     }`}
                   >
                     <Info size={20} />
@@ -1493,17 +1640,17 @@ const CustomerDetail = ({
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 border-t border-slate-100">
+              <div className="bg-white/5 p-4 border-t border-white/5">
                 <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-white/40 uppercase flex items-center gap-2">
                     <History size={14} /> História servisov
-                    <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-md text-[10px]">
+                    <span className="bg-white/10 text-white/60 px-1.5 py-0.5 rounded-md text-[10px]">
                       {boilerServices.length}
                     </span>
                   </h4>
                   <button 
                     onClick={() => toggleHistory(boiler.id)}
-                    className="text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+                    className="text-[10px] font-bold text-[#3A87AD] hover:bg-[#3A87AD]/10 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
                   >
                     {showHistory[boiler.id] ? (
                       <>Skryť grafy <ChevronUp size={12} /></>
@@ -1543,21 +1690,21 @@ const CustomerDetail = ({
                           <div 
                             key={service.id} 
                             onClick={() => onSelectService(service.id)}
-                            className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm hover:border-blue-200 hover:bg-blue-50/30 cursor-pointer transition-all"
+                            className="bg-white/5 p-2.5 rounded-lg border border-white/5 shadow-sm hover:border-[#3A87AD]/50 hover:bg-white/10 cursor-pointer transition-all"
                           >
                             <div className="flex justify-between items-start mb-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-700">{new Date(service.date).toLocaleDateString('sk-SK')}</span>
+                                <span className="text-xs font-bold text-white/80">{new Date(service.date).toLocaleDateString('sk-SK')}</span>
                                 <Wrench 
                                   size={12} 
-                                  className={isTimely ? 'text-emerald-500' : 'text-red-500'} 
+                                  className={isTimely ? 'text-emerald-400' : 'text-[#C14F4F]'} 
                                 />
                               </div>
-                              <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full font-bold uppercase">
+                              <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-bold uppercase">
                                 {service.status}
                               </span>
                             </div>
-                            <p className="text-xs text-slate-600 line-clamp-1">{service.taskPerformed}</p>
+                            <p className="text-xs text-white/60 line-clamp-1">{service.taskPerformed}</p>
                           </div>
                         );
                       })}
@@ -1565,7 +1712,7 @@ const CustomerDetail = ({
                       {boilerServices.length > 3 && (
                         <button 
                           onClick={() => toggleExpand(boiler.id)}
-                          className="w-full py-1.5 text-[11px] font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center justify-center gap-1"
+                          className="w-full py-1.5 text-[11px] font-bold text-[#3A87AD] hover:bg-[#3A87AD]/10 rounded-lg transition-colors flex items-center justify-center gap-1"
                         >
                           {isExpanded ? (
                             <>Zobraziť menej</>
@@ -1576,7 +1723,7 @@ const CustomerDetail = ({
                       )}
                     </>
                   ) : (
-                    <p className="text-[11px] text-slate-400 italic">Žiadna história záznamov.</p>
+                    <p className="text-[11px] text-white/40 italic">Žiadna história záznamov.</p>
                   )}
                 </div>
               </div>
@@ -1587,9 +1734,9 @@ const CustomerDetail = ({
 
       {/* Customer Map */}
       <div className="card p-0 overflow-hidden min-h-[300px] mt-8">
-        <div className="p-4 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <MapIcon size={20} className="text-blue-500" />
+        <div className="p-4 border-b border-white/5">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <MapIcon size={20} className="text-[#3A87AD]" />
             Mapa zariadení zákazníka
           </h2>
         </div>
@@ -1598,6 +1745,7 @@ const CustomerDetail = ({
             center={customerBoilers.length > 0 && customerBoilers[0].lat ? [customerBoilers[0].lat, customerBoilers[0].lng!] : [48.6690, 19.6990]} 
             zoom={customerBoilers.length > 0 ? 12 : 7} 
             style={{ height: '100%', width: '100%' }}
+            className="dark-map"
           >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -1701,24 +1849,24 @@ const ServiceForm = ({
   return (
     <div ref={modalRef} className="space-y-6 animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto p-1">
       <header className="flex items-center gap-4">
-        <button onClick={onCancel} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+        <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full transition-colors">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-2xl font-bold text-slate-900">Nový servisný záznam</h1>
+        <h1 className="text-2xl font-bold text-white">Nový servisný záznam</h1>
       </header>
 
       <div className="card p-6 space-y-6">
-        <div className="bg-blue-50 p-4 rounded-xl flex items-start gap-3">
-          <Info className="text-blue-600 mt-0.5" size={20} />
+        <div className="bg-[#3A87AD]/10 p-4 rounded-xl flex items-start gap-3">
+          <Info className="text-[#3A87AD] mt-0.5" size={20} />
           <div>
-            <p className="font-bold text-blue-900">{boiler.brand} {boiler.model}</p>
-            <p className="text-sm text-blue-700">S/N: {boiler.serialNumber}</p>
+            <p className="font-bold text-[#3A87AD]">{boiler.brand} {boiler.model}</p>
+            <p className="text-sm text-[#3A87AD]/70">S/N: {boiler.serialNumber}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">Dátum servisu</label>
+            <label className="text-sm font-bold text-white/70">Dátum servisu</label>
             <input 
               type="date" 
               className="input-field" 
@@ -1727,7 +1875,7 @@ const ServiceForm = ({
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">Vykonaná práca</label>
+            <label className="text-sm font-bold text-white/70">Vykonaná práca</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
                 { id: 'Ročná prehliadka', label: 'Ročná prehliadka' },
@@ -1741,8 +1889,8 @@ const ServiceForm = ({
                   onClick={() => setFormData({...formData, taskPerformed: task.id})}
                   className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border-2 ${
                     formData.taskPerformed === task.id 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100' 
-                      : 'bg-white border-slate-100 text-slate-600 hover:border-blue-200'
+                      ? 'bg-[#3A87AD] border-[#3A87AD] text-white shadow-md shadow-[#3A87AD]/20' 
+                      : 'bg-white/5 border-white/10 text-white/60 hover:border-[#3A87AD]/50 hover:text-white'
                   }`}
                 >
                   {task.label}
@@ -1755,7 +1903,7 @@ const ServiceForm = ({
         {formData.taskPerformed !== 'Ročná prehliadka' && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in duration-300">
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">CO2 Hodnota (%)</label>
+              <label className="text-sm font-bold text-white/70">CO2 Hodnota (%)</label>
               <input 
                 type="number" 
                 step="0.1" 
@@ -1765,7 +1913,7 @@ const ServiceForm = ({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">CO (ppm)</label>
+              <label className="text-sm font-bold text-white/70">CO (ppm)</label>
               <input 
                 type="number" 
                 step="1" 
@@ -1775,7 +1923,7 @@ const ServiceForm = ({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Tlak (bar)</label>
+              <label className="text-sm font-bold text-white/70">Tlak (bar)</label>
               <input 
                 type="number" 
                 step="0.1" 
@@ -1789,85 +1937,85 @@ const ServiceForm = ({
 
         {formData.taskPerformed === 'Ročná prehliadka' && (
           <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="border-t border-slate-100 pt-6">
-              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <PieChartIcon size={20} className="text-blue-600" />
+            <div className="border-t border-white/5 pt-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <PieChartIcon size={20} className="text-[#3A87AD]" />
                 Analýza spalín a tlaky
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">CO2 Max (%)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">CO2 Max (%)</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.co2Max} onChange={e => setFormData({...formData, co2Max: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">CO2 Min (%)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">CO2 Min (%)</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.co2Min} onChange={e => setFormData({...formData, co2Min: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">CO (ppm)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">CO (ppm)</label>
                   <input type="number" step="1" className="input-field py-1.5" value={formData.coValue} onChange={e => setFormData({...formData, coValue: parseInt(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Účinnosť (%)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">Účinnosť (%)</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.efficiency} onChange={e => setFormData({...formData, efficiency: parseFloat(e.target.value)})} />
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">O2 Max (%)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">O2 Max (%)</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.o2Max} onChange={e => setFormData({...formData, o2Max: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">O2 Min (%)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">O2 Min (%)</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.o2Min} onChange={e => setFormData({...formData, o2Min: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Tlak plynu (mbar)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">Tlak plynu (mbar)</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.gasPressure} onChange={e => setFormData({...formData, gasPressure: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Tlak exp. ÚK (bar)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">Tlak exp. ÚK (bar)</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.expansionTankPressureCH} onChange={e => setFormData({...formData, expansionTankPressureCH: parseFloat(e.target.value)})} />
                 </div>
               </div>
-              <div className="flex items-center gap-4 mt-4 p-3 bg-slate-50 rounded-xl">
+              <div className="flex items-center gap-4 mt-4 p-3 bg-white/5 rounded-xl border border-white/5">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 rounded text-blue-600" checked={formData.hasDHWExpansionTank} onChange={e => setFormData({...formData, hasDHWExpansionTank: e.target.checked})} />
-                  <span className="text-sm font-bold text-slate-700">Má TÚV exp.</span>
+                  <input type="checkbox" className="w-4 h-4 rounded text-[#3A87AD] bg-black/40 border-white/10" checked={formData.hasDHWExpansionTank} onChange={e => setFormData({...formData, hasDHWExpansionTank: e.target.checked})} />
+                  <span className="text-sm font-bold text-white/70">Má TÚV exp.</span>
                 </label>
                 {formData.hasDHWExpansionTank && (
                   <div className="flex-1 flex items-center gap-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Tlak (bar)</label>
+                    <label className="text-[10px] font-bold text-white/40 uppercase">Tlak (bar)</label>
                     <input type="number" step="0.1" className="input-field py-1.5 w-24" value={formData.expansionTankPressureDHW} onChange={e => setFormData({...formData, expansionTankPressureDHW: parseFloat(e.target.value)})} />
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="border-t border-slate-100 pt-6">
-              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <Info size={20} className="text-blue-600" />
+            <div className="border-t border-white/5 pt-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <Info size={20} className="text-[#3A87AD]" />
                 Chemické hodnoty ÚK
               </h3>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Konduktivita (mS/cm)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">Konduktivita (mS/cm)</label>
                   <input type="number" step="1" className="input-field py-1.5" value={formData.conductivity} onChange={e => setFormData({...formData, conductivity: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">PH ÚK</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">PH ÚK</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.phCH} onChange={e => setFormData({...formData, phCH: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Tvrdosť ÚK (°dH)</label>
+                  <label className="text-[10px] font-bold text-white/40 uppercase">Tvrdosť ÚK (°dH)</label>
                   <input type="number" step="0.1" className="input-field py-1.5" value={formData.hardnessCH} onChange={e => setFormData({...formData, hardnessCH: parseFloat(e.target.value)})} />
                 </div>
               </div>
             </div>
 
-            <div className="border-t border-slate-100 pt-6">
-              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <CheckCircle2 size={20} className="text-blue-600" />
+            <div className="border-t border-white/5 pt-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <CheckCircle2 size={20} className="text-[#3A87AD]" />
                 Kontrolný zoznam
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
@@ -1887,8 +2035,8 @@ const ServiceForm = ({
                   { key: 'emergencyStatesCheck', label: 'Kontrola havarijných stavov' },
                   { key: 'bondingProtection', label: 'Ochrana pospojovaním' },
                 ].map(item => (
-                  <div key={item.key} className="flex items-center justify-between p-2 bg-slate-50/50 rounded-xl border border-slate-100">
-                    <span className="text-xs font-bold text-slate-700">{item.label}</span>
+                  <div key={item.key} className="flex items-center justify-between p-2 bg-white/5 rounded-xl border border-white/5">
+                    <span className="text-xs font-bold text-white/80">{item.label}</span>
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
@@ -1896,7 +2044,7 @@ const ServiceForm = ({
                         className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
                           formData[item.key as keyof typeof formData] === true 
                             ? 'bg-emerald-500 text-white shadow-sm' 
-                            : 'bg-white text-slate-400 border border-slate-200'
+                            : 'bg-white/5 text-white/40 border border-white/10'
                         }`}
                       >
                         ÁNO
@@ -1906,8 +2054,8 @@ const ServiceForm = ({
                         onClick={() => setFormData({...formData, [item.key]: false})}
                         className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
                           formData[item.key as keyof typeof formData] === false 
-                            ? 'bg-red-500 text-white shadow-sm' 
-                            : 'bg-white text-slate-400 border border-slate-200'
+                            ? 'bg-[#C14F4F] text-white shadow-sm' 
+                            : 'bg-white/5 text-white/40 border border-white/10'
                         }`}
                       >
                         NIE
@@ -1921,7 +2069,7 @@ const ServiceForm = ({
         )}
 
         <div className="space-y-2">
-          <label className="text-sm font-bold text-slate-700">Poznámky technika</label>
+          <label className="text-sm font-bold text-white/70">Poznámky technika</label>
           <textarea 
             className="input-field min-h-[100px]" 
             placeholder="Doplňujúce informácie o stave kotla..."
@@ -1939,40 +2087,40 @@ const ServiceForm = ({
               accept="image/*" 
               onChange={onFileChange}
             />
-            <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+            <label className="text-sm font-bold text-white/70 flex items-center gap-2">
               <Camera size={18} /> Fotografia stavu
             </label>
             <div 
               onClick={handlePhotoClick}
-              className="aspect-video bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200 transition-all overflow-hidden"
+              className="aspect-video bg-white/5 rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden"
             >
               {photo ? (
                 <img src={photo} alt="Boiler" className="w-full h-full object-cover" />
               ) : (
                 <>
-                  <Camera className="text-slate-400 mb-2" size={32} />
-                  <span className="text-xs font-medium text-slate-500">Kliknite pre odfotenie</span>
+                  <Camera className="text-white/20 mb-2" size={32} />
+                  <span className="text-xs font-medium text-white/40">Kliknite pre odfotenie</span>
                 </>
               )}
             </div>
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+            <label className="text-sm font-bold text-white/70 flex items-center gap-2">
               <PenTool size={18} /> Podpis zákazníka
             </label>
-            <div className="bg-slate-50 rounded-2xl border border-slate-200 relative overflow-hidden h-48">
+            <div className="bg-white/5 rounded-2xl border border-white/10 relative overflow-hidden h-48">
               <SignatureCanvas 
                 ref={sigCanvas}
-                penColor="blue"
+                penColor="#3A87AD"
                 canvasProps={{ className: "w-full h-full cursor-crosshair" }}
                 onEnd={() => setSigned(true)}
               />
-              <div className="absolute bottom-4 left-4 right-4 h-px bg-slate-300 pointer-events-none"></div>
+              <div className="absolute bottom-4 left-4 right-4 h-px bg-white/10 pointer-events-none"></div>
               <button 
                 type="button"
                 onClick={() => { sigCanvas.current?.clear(); setSigned(false); }}
-                className="absolute top-2 right-2 p-1 bg-white/80 rounded-md text-xs font-bold text-slate-500 hover:bg-white transition-colors"
+                className="absolute top-2 right-2 p-1 bg-black/40 rounded-md text-xs font-bold text-white/40 hover:text-white transition-colors"
               >
                 Vymazať
               </button>
@@ -2049,14 +2197,14 @@ const ServicesList = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <header>
-        <h1 className="text-2xl font-bold text-slate-900">Zásahy</h1>
-        <p className="text-slate-500">História všetkých servisných úkonov.</p>
+        <h1 className="text-2xl font-bold text-white">Zásahy</h1>
+        <p className="text-white/40">História všetkých servisných úkonov.</p>
       </header>
 
-      <div className="bg-blue-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-200">
+      <div className="bg-[#3A87AD] rounded-2xl p-6 text-white shadow-lg shadow-[#3A87AD]/20">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-blue-100 text-sm font-medium uppercase tracking-wider">Celkový počet zásahov</p>
+            <p className="text-white/60 text-sm font-medium uppercase tracking-wider">Celkový počet zásahov</p>
             <h2 className="text-4xl font-bold mt-1">{services.length}</h2>
           </div>
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
@@ -2085,7 +2233,7 @@ const ServicesList = ({
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="bg-white p-2 rounded-lg shadow-xl text-slate-900 text-xs font-bold">
+                      <div className="bg-[#1E1E1E] p-2 rounded-lg shadow-xl text-white text-xs font-bold border border-white/10">
                         {payload[0].payload.name}: {payload[0].value}
                       </div>
                     );
@@ -2096,7 +2244,7 @@ const ServicesList = ({
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <div className="flex justify-between mt-2 text-[10px] text-blue-100 font-bold uppercase tracking-widest">
+        <div className="flex justify-between mt-2 text-[10px] text-white/40 font-bold uppercase tracking-widest">
           <span>Pred rokom</span>
           <span>Súčasnosť</span>
         </div>
@@ -2110,34 +2258,34 @@ const ServicesList = ({
           return (
             <div 
               key={service.id} 
-              className="card p-4 flex items-center justify-between hover:border-blue-200 hover:bg-blue-50/30 cursor-pointer transition-all group"
+              className="card p-4 flex items-center justify-between hover:border-[#3A87AD]/30 hover:bg-[#3A87AD]/5 cursor-pointer transition-all group"
             >
               <div 
                 className="flex items-center gap-4 flex-1"
                 onClick={() => onSelectService(service.id)}
               >
-                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-white/5 text-[#3A87AD] rounded-full flex items-center justify-center">
                   <Wrench size={24} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-slate-900">{customer?.name}</h3>
-                    <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md font-bold uppercase">{boiler?.brand}</span>
+                    <h3 className="font-bold text-white">{customer?.name}</h3>
+                    <span className="text-[10px] bg-[#3A87AD]/10 text-[#3A87AD] px-1.5 py-0.5 rounded-md font-bold uppercase">{boiler?.brand}</span>
                   </div>
-                  <p className="text-sm text-slate-500">{service.taskPerformed} • {new Date(service.date).toLocaleDateString('sk-SK')}</p>
+                  <p className="text-sm text-white/40">{service.taskPerformed} • {new Date(service.date).toLocaleDateString('sk-SK')}</p>
                 </div>
               </div>
               <div className="text-right flex items-center gap-4">
                 <div className="hidden sm:block" onClick={() => onSelectService(service.id)}>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Stav</p>
-                  <span className="text-xs font-bold text-emerald-600">{service.status}</span>
+                  <p className="text-[10px] font-bold text-white/20 uppercase">Stav</p>
+                  <span className="text-xs font-bold text-emerald-500">{service.status}</span>
                 </div>
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
                     customer && onSelectCustomer(customer.id);
                   }}
-                  className="p-2 hover:bg-blue-100 rounded-xl transition-colors text-slate-300 hover:text-blue-600"
+                  className="p-2 hover:bg-white/5 rounded-xl transition-colors text-white/20 hover:text-[#3A87AD]"
                   title="Prejsť na zákazníka"
                 >
                   <ChevronRight size={20} />
@@ -2152,6 +2300,243 @@ const ServicesList = ({
 };
 
 // --- Delete Confirmation Modal ---
+
+const ContactsList = ({ 
+  contacts,
+  onAddContact,
+  onEditContact
+}: { 
+  contacts: Contact[],
+  onAddContact: () => void,
+  onEditContact: (contact: Contact) => void
+}) => {
+  const [search, setSearch] = useState('');
+
+  const filteredContacts = contacts.filter(c => 
+    c.name.toLowerCase().includes(search.toLowerCase()) || 
+    c.specialization.toLowerCase().includes(search.toLowerCase()) ||
+    c.phone.includes(search) ||
+    (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <header className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-white">Kontakty</h1>
+        <button onClick={onAddContact} className="btn-primary">
+          <Plus size={20} />
+          <span>Nový kontakt</span>
+        </button>
+      </header>
+
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={20} />
+        <input 
+          type="text" 
+          placeholder="Hľadať v kontaktoch..." 
+          className="input-field pl-12"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredContacts.map(contact => (
+          <div 
+            key={contact.id} 
+            className="card p-5 space-y-4 hover:border-[#3A87AD]/30 transition-all group"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#3A87AD]/10 text-[#3A87AD] rounded-xl flex items-center justify-center font-bold">
+                  {contact.name.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="font-bold text-white">{contact.name}</h3>
+                  <p className="text-xs text-[#3A87AD] font-medium uppercase tracking-wider">{contact.specialization}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => onEditContact(contact)}
+                className="p-2 text-white/20 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
+              >
+                <PenTool size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <a href={`tel:${contact.phone}`} className="flex items-center gap-3 text-sm text-white/60 hover:text-[#3A87AD] transition-colors">
+                <Phone size={16} className="text-white/20" />
+                {contact.phone}
+              </a>
+              {contact.email && (
+                <a href={`mailto:${contact.email}`} className="flex items-center gap-3 text-sm text-white/60 hover:text-[#3A87AD] transition-colors">
+                  <Info size={16} className="text-white/20" />
+                  {contact.email}
+                </a>
+              )}
+              {contact.address && (
+                <div className="flex items-start gap-3 text-sm text-white/60">
+                  <MapPin size={16} className="text-white/20 mt-0.5" />
+                  <span>{contact.address}</span>
+                </div>
+              )}
+            </div>
+
+            {contact.notes && (
+              <div className="bg-white/5 rounded-lg p-3 text-xs text-white/40 italic">
+                {contact.notes}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ContactModal = ({ 
+  isOpen, 
+  onClose, 
+  onAdd, 
+  onUpdate,
+  onDelete,
+  editingContact
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onAdd: (contact: Omit<Contact, 'id'>) => void, 
+  onUpdate: (id: string, contact: Partial<Contact>) => void,
+  onDelete: (id: string) => void,
+  editingContact: Contact | null
+}) => {
+  const [contact, setContact] = useState({ name: '', specialization: '', phone: '', email: '', address: '', notes: '' });
+
+  useEffect(() => {
+    if (isOpen) {
+      if (editingContact) {
+        setContact({
+          name: editingContact.name,
+          specialization: editingContact.specialization,
+          phone: editingContact.phone,
+          email: editingContact.email || '',
+          address: editingContact.address || '',
+          notes: editingContact.notes || ''
+        });
+      } else {
+        setContact({ name: '', specialization: '', phone: '', email: '', address: '', notes: '' });
+      }
+    }
+  }, [isOpen, editingContact]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingContact) {
+      onUpdate(editingContact.id, contact);
+    } else {
+      onAdd(contact);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="card w-full max-w-md p-6 relative z-10 overflow-y-auto max-h-[90vh]"
+      >
+        <h2 className="text-xl font-bold text-white mb-6">
+          {editingContact ? 'Upraviť kontakt' : 'Nový kontakt'}
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-sm font-bold text-white/70">Meno / Názov</label>
+            <input 
+              required
+              className="input-field" 
+              value={contact.name}
+              onChange={e => setContact({...contact, name: e.target.value})}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-bold text-white/70">Špecializácia (značka/odbor)</label>
+            <input 
+              required
+              placeholder="napr. Servisný technik, Predajňa..."
+              className="input-field" 
+              value={contact.specialization}
+              onChange={e => setContact({...contact, specialization: e.target.value})}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-white/70">Telefón</label>
+              <input 
+                required
+                className="input-field" 
+                value={contact.phone}
+                onChange={e => setContact({...contact, phone: e.target.value})}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-white/70">Email</label>
+              <input 
+                type="email"
+                className="input-field" 
+                value={contact.email}
+                onChange={e => setContact({...contact, email: e.target.value})}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-bold text-white/70">Adresa</label>
+            <input 
+              className="input-field" 
+              value={contact.address}
+              onChange={e => setContact({...contact, address: e.target.value})}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-bold text-white/70">Poznámka</label>
+            <textarea 
+              className="input-field min-h-[80px]" 
+              value={contact.notes}
+              onChange={e => setContact({...contact, notes: e.target.value})}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            {editingContact && (
+              <button 
+                type="button"
+                onClick={() => onDelete(editingContact.id)}
+                className="btn-secondary text-[#C14F4F] hover:bg-[#C14F4F]/10 border-[#C14F4F]/20"
+              >
+                Vymazať
+              </button>
+            )}
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Zrušiť</button>
+            <button type="submit" className="btn-primary flex-1">Uložiť</button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
 
 const DeleteConfirmModal = ({ 
   isOpen, 
@@ -2169,24 +2554,24 @@ const DeleteConfirmModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         className="card w-full max-w-md p-6 space-y-6"
       >
-        <div className="flex items-center gap-4 text-red-600">
-          <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center">
+        <div className="flex items-center gap-4 text-[#C14F4F]">
+          <div className="w-12 h-12 bg-[#C14F4F]/10 rounded-full flex items-center justify-center">
             <AlertCircle size={24} />
           </div>
           <h2 className="text-xl font-bold">{title}</h2>
         </div>
         
-        <p className="text-slate-600">{message}</p>
+        <p className="text-white/60">{message}</p>
 
         <div className="flex gap-3 pt-4">
           <button onClick={onClose} className="btn-secondary flex-1 justify-center">Zrušiť</button>
-          <button onClick={onConfirm} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 flex-1 justify-center">
+          <button onClick={onConfirm} className="btn-primary bg-[#C14F4F] hover:bg-[#C14F4F]/80 border-[#C14F4F] flex-1 justify-center shadow-[#C14F4F]/20">
             Odstrániť
           </button>
         </div>
@@ -2208,8 +2593,12 @@ export default function App() {
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [customerToDeleteId, setCustomerToDeleteId] = useState<string | null>(null);
+  const [boilerToDeleteId, setBoilerToDeleteId] = useState<string | null>(null);
+  const [contactToDeleteId, setContactToDeleteId] = useState<string | null>(null);
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const lastScrollY = useRef(0);
 
@@ -2234,11 +2623,13 @@ export default function App() {
   const [data, setData] = useState<{
     customers: Customer[],
     boilers: Boiler[],
-    services: ServiceRecord[]
+    services: ServiceRecord[],
+    contacts: Contact[]
   }>({
     customers: [],
     boilers: [],
-    services: []
+    services: [],
+    contacts: []
   });
 
   const shouldShowSidebar = isSidebarVisible && !isCustomerModalOpen && !isBoilerModalOpen && !isDeleteConfirmOpen;
@@ -2283,10 +2674,16 @@ export default function App() {
       setData(prev => ({ ...prev, services }));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'services'));
 
+    const unsubContacts = onSnapshot(collection(db, 'contacts'), (snapshot) => {
+      const contacts = snapshot.docs.map(doc => doc.data() as Contact);
+      setData(prev => ({ ...prev, contacts }));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'contacts'));
+
     return () => {
       unsubCustomers();
       unsubBoilers();
       unsubServices();
+      unsubContacts();
     };
   }, [user]);
 
@@ -2390,7 +2787,11 @@ export default function App() {
   const handleAddCustomer = async (newCust: Omit<Customer, 'id'>, boilerData?: Omit<Boiler, 'id' | 'customerId'>) => {
     try {
       const customerId = `c${Date.now()}`;
-      const customer: Customer = { ...newCust, id: customerId };
+      const customer: Customer = { 
+        ...newCust, 
+        id: customerId,
+        createdAt: new Date().toISOString()
+      };
       
       await setDoc(doc(db, 'customers', customerId), customer);
 
@@ -2427,36 +2828,80 @@ export default function App() {
     setIsDeleteConfirmOpen(true);
   };
 
-  const confirmDeleteCustomer = async () => {
-    if (!customerToDeleteId) return;
-
+  const handleAddContact = async (newContact: Omit<Contact, 'id'>) => {
     try {
-      // Delete customer
-      await deleteDoc(doc(db, 'customers', customerToDeleteId));
-      
-      // Delete associated boilers
-      const customerBoilers = data.boilers.filter(b => b.customerId === customerToDeleteId);
-      for (const boiler of customerBoilers) {
-        await deleteDoc(doc(db, 'boilers', boiler.id));
-        
-        // Delete associated services
-        const boilerServices = data.services.filter(s => s.boilerId === boiler.id);
+      const contactId = `con${Date.now()}`;
+      const contact: Contact = { 
+        ...newContact, 
+        id: contactId,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'contacts', contactId), contact);
+      setIsContactModalOpen(false);
+      setEditingContactId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'contacts');
+    }
+  };
+
+  const handleUpdateContact = async (id: string, contactData: Partial<Contact>) => {
+    try {
+      const contactRef = doc(db, 'contacts', id);
+      await updateDoc(contactRef, contactData);
+      setIsContactModalOpen(false);
+      setEditingContactId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'contacts');
+    }
+  };
+
+  const handleDeleteContact = async (id: string) => {
+    setContactToDeleteId(id);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteBoiler = async (id: string) => {
+    setBoilerToDeleteId(id);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      if (customerToDeleteId) {
+        await deleteDoc(doc(db, 'customers', customerToDeleteId));
+        const customerBoilers = data.boilers.filter(b => b.customerId === customerToDeleteId);
+        for (const boiler of customerBoilers) {
+          await deleteDoc(doc(db, 'boilers', boiler.id));
+          const boilerServices = data.services.filter(s => s.boilerId === boiler.id);
+          for (const service of boilerServices) {
+            await deleteDoc(doc(db, 'services', service.id));
+          }
+        }
+        setCustomerToDeleteId(null);
+        setIsCustomerModalOpen(false);
+        setEditingCustomerId(null);
+        if (selectedCustomerId === customerToDeleteId) {
+          setSelectedCustomerId(null);
+          setActiveTab('customers');
+        }
+      } else if (boilerToDeleteId) {
+        await deleteDoc(doc(db, 'boilers', boilerToDeleteId));
+        const boilerServices = data.services.filter(s => s.boilerId === boilerToDeleteId);
         for (const service of boilerServices) {
           await deleteDoc(doc(db, 'services', service.id));
         }
+        setBoilerToDeleteId(null);
+        setIsBoilerModalOpen(false);
+        setEditingBoilerId(null);
+      } else if (contactToDeleteId) {
+        await deleteDoc(doc(db, 'contacts', contactToDeleteId));
+        setContactToDeleteId(null);
+        setIsContactModalOpen(false);
+        setEditingContactId(null);
       }
-
       setIsDeleteConfirmOpen(false);
-      setCustomerToDeleteId(null);
-      setIsCustomerModalOpen(false);
-      setEditingCustomerId(null);
-      
-      if (selectedCustomerId === customerToDeleteId) {
-        setSelectedCustomerId(null);
-        setActiveTab('customers');
-      }
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'customers/boilers/services');
+      handleFirestoreError(error, OperationType.DELETE, 'data');
     }
   };
 
@@ -2553,6 +2998,20 @@ export default function App() {
             onSelectService={setSelectedServiceId}
           />
         );
+      case 'contacts':
+        return (
+          <ContactsList 
+            contacts={data.contacts}
+            onAddContact={() => {
+              setEditingContactId(null);
+              setIsContactModalOpen(true);
+            }}
+            onEditContact={(c) => {
+              setEditingContactId(c.id);
+              setIsContactModalOpen(true);
+            }}
+          />
+        );
       case 'customerDetail':
         const customer = data.customers.find(c => c.id === selectedCustomerId);
         if (!customer) return null;
@@ -2593,8 +3052,8 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">Načítavam aplikáciu...</p>
+          <div className="w-12 h-12 border-4 border-[#3A87AD] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-white/50 font-medium">Načítavam aplikáciu SP Therm...</p>
         </div>
       </div>
     );
@@ -2618,17 +3077,17 @@ export default function App() {
           <div className="md:hidden flex justify-between items-center mb-6">
             <div className="flex items-center gap-2">
               <img 
-                src="/logo.png" 
+                src="/image_4.png" 
                 onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/logo/200/200'; }}
                 alt="Logo" 
                 className="h-8 w-auto object-contain" 
                 referrerPolicy="no-referrer" 
               />
-              <span className="text-blue-600 font-bold text-lg">Servis Plyn</span>
+              <span className="text-[#3A87AD] font-bold text-lg">SP Therm s.r.o.</span>
             </div>
             <button 
               onClick={handleLogout}
-              className="p-2 text-slate-500 hover:text-slate-700 transition-colors"
+              className="p-2 text-white/60 hover:text-white transition-colors"
               title="Odhlásiť sa"
             >
               <ArrowLeft size={20} />
@@ -2638,7 +3097,7 @@ export default function App() {
           <div className="hidden md:flex justify-end md:absolute md:top-6 md:right-10">
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors text-sm font-medium"
+              className="flex items-center gap-2 text-white/40 hover:text-white/60 transition-colors text-sm font-medium"
             >
               <ArrowLeft size={16} />
               Odhlásiť sa ({user.displayName?.split(' ')[0]})
@@ -2659,13 +3118,13 @@ export default function App() {
 
         {/* Boiler Modal */}
         {isBoilerModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               className="card w-full max-w-2xl p-6 space-y-6"
             >
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-[#3A87AD]">
                 {editingBoilerId ? 'Upraviť zariadenie' : 'Pridať nové zariadenie'}
               </h2>
               <form onSubmit={(e) => { e.preventDefault(); handleAddBoiler(newBoilerData); }} className="space-y-4">
@@ -2674,7 +3133,16 @@ export default function App() {
                   setBoilerData={setNewBoilerData} 
                   existingBoilers={data.boilers} 
                 />
-                <div className="flex gap-3 pt-4 border-t border-slate-100">
+                <div className="flex gap-3 pt-4 border-t border-white/5">
+                  {editingBoilerId && (
+                    <button 
+                      type="button"
+                      onClick={() => handleDeleteBoiler(editingBoilerId)}
+                      className="btn-secondary text-[#C14F4F] hover:bg-[#C14F4F]/10 border-[#C14F4F]/20"
+                    >
+                      Vymazať
+                    </button>
+                  )}
                   <button type="button" onClick={() => { setIsBoilerModalOpen(false); setEditingBoilerId(null); }} className="btn-secondary flex-1 justify-center">Zrušiť</button>
                   <button type="submit" className="btn-primary flex-1 justify-center">Uložiť zariadenie</button>
                 </div>
@@ -2712,16 +3180,35 @@ export default function App() {
           boilers={data.boilers}
         />
 
+        {/* Contact Modal */}
+        <ContactModal 
+          isOpen={isContactModalOpen}
+          onClose={() => {
+            setIsContactModalOpen(false);
+            setEditingContactId(null);
+          }}
+          onAdd={handleAddContact}
+          onUpdate={handleUpdateContact}
+          onDelete={handleDeleteContact}
+          editingContact={editingContactId ? data.contacts.find(c => c.id === editingContactId) || null : null}
+        />
+
         {/* Delete Confirmation Modal */}
         <DeleteConfirmModal 
           isOpen={isDeleteConfirmOpen}
           onClose={() => {
             setIsDeleteConfirmOpen(false);
             setCustomerToDeleteId(null);
+            setBoilerToDeleteId(null);
+            setContactToDeleteId(null);
           }}
-          onConfirm={confirmDeleteCustomer}
-          title="Odstrániť zákazníka"
-          message="Naozaj chcete odstrániť tohto zákazníka? Táto akcia odstráni aj všetky jeho zariadenia a servisné záznamy a je nevratná."
+          onConfirm={confirmDelete}
+          title={customerToDeleteId ? "Odstrániť zákazníka" : boilerToDeleteId ? "Odstrániť zariadenie" : "Odstrániť kontakt"}
+          message={customerToDeleteId 
+            ? "Naozaj chcete odstrániť tohto zákazníka? Táto akcia odstráni aj všetky jeho zariadenia a servisné záznamy a je nevratná." 
+            : boilerToDeleteId 
+            ? "Naozaj chcete odstrániť toto zariadenie? Táto akcia odstráni aj všetky jeho servisné záznamy a je nevratná."
+            : "Naozaj chcete odstrániť tento kontakt? Táto akcia je nevratná."}
         />
       </main>
     </div>

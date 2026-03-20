@@ -74,10 +74,23 @@ export interface Customer {
   phone: string;
   email?: string;
   notes?: string;
+  createdAt?: string;
+}
+
+export interface Contact {
+  id: string;
+  name: string;
+  specialization: string; // e.g. "Servisný technik", "Predajňa", "Inštalatér"
+  phone: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  createdAt?: string;
 }
 
 export interface AppState {
   customers: Customer[];
   boilers: Boiler[];
   services: ServiceRecord[];
+  contacts: Contact[];
 }

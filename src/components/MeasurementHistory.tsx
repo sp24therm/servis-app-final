@@ -34,7 +34,7 @@ const MeasurementHistory = ({ services }: { services: ServiceRecord[] }) => {
 
   if (data.length === 0) {
     return (
-      <div className="p-8 text-center text-slate-400 italic bg-white rounded-2xl border border-slate-100">
+      <div className="p-8 text-center text-white/20 italic bg-white/5 rounded-2xl border border-white/5">
         Žiadne historické dáta pre grafy.
       </div>
     );
@@ -44,23 +44,23 @@ const MeasurementHistory = ({ services }: { services: ServiceRecord[] }) => {
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Combustion Analysis */}
       <div className="card p-4">
-        <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <TrendingUp size={18} className="text-blue-500" />
+        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+          <TrendingUp size={18} className="text-[#3A87AD]" />
           Analýza spalín (CO2, O2, Účinnosť)
         </h3>
         <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="date" fontSize={10} tick={{ fill: '#94a3b8' }} />
-              <YAxis fontSize={10} tick={{ fill: '#94a3b8' }} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="date" fontSize={10} tick={{ fill: 'rgba(255,255,255,0.4)' }} />
+              <YAxis fontSize={10} tick={{ fill: 'rgba(255,255,255,0.4)' }} />
               <Tooltip 
-                contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                contentStyle={{ backgroundColor: '#1E1E1E', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
+                itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#E0E0E0' }}
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-              <Line type="monotone" dataKey="co2Max" name="CO2 Max (%)" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="co" name="CO (ppm)" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="co2Max" name="CO2 Max (%)" stroke="#3A87AD" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="co" name="CO (ppm)" stroke="#C14F4F" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
               <Line type="monotone" dataKey="efficiency" name="Účinnosť (%)" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
               <Line type="monotone" dataKey="o2Max" name="O2 Max (%)" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
             </LineChart>
@@ -70,19 +70,19 @@ const MeasurementHistory = ({ services }: { services: ServiceRecord[] }) => {
 
       {/* Chemical Values */}
       <div className="card p-4">
-        <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
           <Droplets size={18} className="text-emerald-500" />
           Chemické hodnoty ÚK (pH, Tvrdosť, Vodivosť)
         </h3>
         <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="date" fontSize={10} tick={{ fill: '#94a3b8' }} />
-              <YAxis fontSize={10} tick={{ fill: '#94a3b8' }} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="date" fontSize={10} tick={{ fill: 'rgba(255,255,255,0.4)' }} />
+              <YAxis fontSize={10} tick={{ fill: 'rgba(255,255,255,0.4)' }} />
               <Tooltip 
-                contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                contentStyle={{ backgroundColor: '#1E1E1E', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
+                itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#E0E0E0' }}
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
               <Line type="monotone" dataKey="ph" name="pH" stroke="#059669" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />

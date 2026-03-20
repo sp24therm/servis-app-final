@@ -1,6 +1,6 @@
 {
-  "name": "Servis Plyn",
-  "description": "Profesionálny systém na správu servisu plynových kotlov pre technikov.",
+  "name": "SP Therm s.r.o.",
+  "description": "Profesionálny systém na správu servisu plynových kotlov pre technikov SP Therm.",
   "requestFramePermissions": [
     "camera"
   ]

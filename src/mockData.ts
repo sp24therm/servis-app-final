@@ -86,4 +86,16 @@ export const MOCK_DATA: AppState = {
       status: ServiceStatus.COMPLETED,
     },
   ],
+  contacts: [
+    {
+      id: 'con1',
+      name: 'Peter Servisák',
+      specialization: 'Servisný technik',
+      phone: '+421905111222',
+      email: 'peter@servis.sk',
+      address: 'Technická 1, Bratislava',
+      notes: 'Špecialista na Viessmann',
+      createdAt: '2024-01-01T10:00:00Z'
+    }
+  ]
 };
