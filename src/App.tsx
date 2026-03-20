@@ -95,6 +95,50 @@ import {
 } from 'firebase/storage';
 import { AppState, Customer, Boiler, ServiceRecord, ServiceStatus, Contact } from './types';
 
+// --- Helper Functions ---
+
+const trimCanvas = (canvas: HTMLCanvasElement) => {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const l = pixels.data.length;
+  const bound = {
+    top: null as number | null,
+    left: null as number | null,
+    right: null as number | null,
+    bottom: null as number | null
+  };
+  let i, x, y;
+
+  for (i = 0; i < l; i += 4) {
+    if (pixels.data[i + 3] !== 0) {
+      x = (i / 4) % canvas.width;
+      y = Math.floor((i / 4) / canvas.width);
+
+      if (bound.top === null) bound.top = y;
+      if (bound.left === null) bound.left = x;
+      else if (x < bound.left) bound.left = x;
+      if (bound.right === null) bound.right = x;
+      else if (bound.right < x) bound.right = x;
+      if (bound.bottom === null || bound.bottom < y) bound.bottom = y;
+    }
+  }
+
+  if (bound.top === null) return canvas;
+
+  const trimHeight = bound.bottom! - bound.top! + 1;
+  const trimWidth = bound.right! - bound.left! + 1;
+  const trimmed = ctx.getImageData(bound.left!, bound.top!, trimWidth, trimHeight);
+
+  const copy = document.createElement('canvas');
+  copy.width = trimWidth;
+  copy.height = trimHeight;
+  const copyCtx = copy.getContext('2d');
+  if (copyCtx) copyCtx.putImageData(trimmed, 0, 0);
+
+  return copy;
+};
+
 // --- Error Boundary ---
 
 interface ErrorBoundaryProps {
@@ -210,7 +254,7 @@ const Sidebar = ({ activeTab, setActiveTab, isVisible }: { activeTab: string, se
     <div className={`fixed bottom-0 left-0 right-0 bg-[#121212] backdrop-blur-md border-t border-white/5 px-6 py-1.5 flex justify-around items-center md:relative md:w-64 md:h-screen md:flex-col md:justify-start md:border-t-0 md:border-r md:pt-8 md:gap-2 z-[40] transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full md:translate-y-0'} md:bg-transparent md:border-r-white/10`}>
       <div className="hidden md:flex items-center gap-3 px-4 mb-8 w-full">
         <img 
-          src="/image_4.png" 
+          src="/logo.png" 
           onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/logo/200/200'; }}
           alt="Logo" 
           className="h-10 w-auto object-contain" 
@@ -478,7 +522,7 @@ const Dashboard = ({
             </div>
           </div>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
                   data={brandData}
@@ -511,7 +555,7 @@ const Dashboard = ({
             Typy zásahov (%)
           </h2>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
                   data={serviceTypeData}
@@ -931,7 +975,7 @@ const CustomerList = ({
             </h2>
           </div>
           <div className="h-[150px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={150}>
               <AreaChart data={customerTrendData}>
                 <defs>
                   <linearGradient id="colorCust" x1="0" y1="0" x2="0" y2="1">
@@ -1148,7 +1192,7 @@ const CustomerModal = ({
             <button 
               type="button"
               onClick={() => onDelete(editingCustomer.id)}
-              className="p-2 text-white/40 hover:text-[#C14F4F] hover:bg-[#C14F4F]/10 rounded-xl transition-all"
+              className="p-2 text-white hover:bg-white/10 rounded-xl transition-all"
               title="Vymazať zákazníka"
             >
               <Trash2 size={20} />
@@ -1190,7 +1234,6 @@ const CustomerModal = ({
             <div className="space-y-1">
               <label className="text-sm font-bold text-white/70">Telefón</label>
               <input 
-                required
                 type="tel" 
                 className="input-field" 
                 value={newCustomer.phone}
@@ -1799,6 +1842,10 @@ const ServiceForm = ({
     conductivity: initialData?.conductivity || 250,
     phCH: initialData?.phCH || 8.2,
     hardnessCH: initialData?.hardnessCH || 0.1,
+    // New dynamic fields
+    faultDescription: initialData?.faultDescription || '',
+    faultFixed: initialData?.faultFixed || false,
+    hasFlueGasAnalysis: initialData?.hasFlueGasAnalysis || false,
     burnerCheck: initialData?.burnerCheck ?? null,
     combustionChamberCleaning: initialData?.combustionChamberCleaning ?? null,
     electrodesCheck: initialData?.electrodesCheck ?? null,
@@ -1815,6 +1862,11 @@ const ServiceForm = ({
     bondingProtection: initialData?.bondingProtection ?? null,
   });
   const [photo, setPhoto] = useState<string | null>(initialData?.photo || null);
+  const [photoBefore, setPhotoBefore] = useState<string | null>(initialData?.photoBefore || null);
+  const [photoAfter, setPhotoAfter] = useState<string | null>(initialData?.photoAfter || null);
+  const [photoBoiler, setPhotoBoiler] = useState<string | null>(initialData?.photoBoiler || null);
+  const [photoConnection, setPhotoConnection] = useState<string | null>(initialData?.photoConnection || null);
+  const [photoChimney, setPhotoChimney] = useState<string | null>(initialData?.photoChimney || null);
   const [signed, setSigned] = useState(!!initialData);
   const sigCanvas = useRef<SignatureCanvas>(null);
 
@@ -1828,8 +1880,29 @@ const ServiceForm = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePhotoClick = () => {
-    fileInputRef.current?.click();
+  const handlePhotoClick = (type: string = 'photo') => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        try {
+          const storageRef = ref(storage, `services/${Date.now()}_${file.name}`);
+          const snapshot = await uploadBytes(storageRef, file);
+          const downloadURL = await getDownloadURL(snapshot.ref);
+          if (type === 'photo') setPhoto(downloadURL);
+          else if (type === 'photoBefore') setPhotoBefore(downloadURL);
+          else if (type === 'photoAfter') setPhotoAfter(downloadURL);
+          else if (type === 'photoBoiler') setPhotoBoiler(downloadURL);
+          else if (type === 'photoConnection') setPhotoConnection(downloadURL);
+          else if (type === 'photoChimney') setPhotoChimney(downloadURL);
+        } catch (error) {
+          console.error("Upload failed", error);
+        }
+      }
+    };
+    input.click();
   };
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1900,7 +1973,125 @@ const ServiceForm = ({
           </div>
         </div>
 
-        {formData.taskPerformed !== 'Ročná prehliadka' && (
+        {formData.taskPerformed === 'Porucha' && (
+          <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-white/70">Popis poruchy</label>
+              <textarea 
+                className="input-field min-h-[80px]" 
+                placeholder="Popíšte zistenú poruchu..."
+                value={formData.faultDescription}
+                onChange={(e) => setFormData({...formData, faultDescription: e.target.value})}
+              />
+            </div>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="w-4 h-4 rounded text-[#3A87AD] bg-black/40 border-white/10" 
+                  checked={formData.faultFixed} 
+                  onChange={e => setFormData({...formData, faultFixed: e.target.checked})} 
+                />
+                <span className="text-sm font-bold text-white/70">Porucha odstránená</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="w-4 h-4 rounded text-[#3A87AD] bg-black/40 border-white/10" 
+                  checked={formData.hasFlueGasAnalysis} 
+                  onChange={e => setFormData({...formData, hasFlueGasAnalysis: e.target.checked})} 
+                />
+                <span className="text-sm font-bold text-white/70">Analýza spalín</span>
+              </label>
+            </div>
+
+            {formData.hasFlueGasAnalysis && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">CO2 Max (%)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.co2Max} onChange={e => setFormData({...formData, co2Max: parseFloat(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">O2 Max (%)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.o2Max} onChange={e => setFormData({...formData, o2Max: parseFloat(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">CO2 Min (%)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.co2Min} onChange={e => setFormData({...formData, co2Min: parseFloat(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">O2 Min (%)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.o2Min} onChange={e => setFormData({...formData, o2Min: parseFloat(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">CO (ppm)</label>
+                  <input type="number" step="1" className="input-field py-1.5" value={formData.coValue} onChange={e => setFormData({...formData, coValue: parseInt(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">Tlak plynu (bar)</label>
+                  <input type="number" step="0.01" className="input-field py-1.5" value={formData.gasPressure} onChange={e => setFormData({...formData, gasPressure: parseFloat(e.target.value)})} />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-white/40 uppercase">Foto Pred</label>
+                <div 
+                  onClick={() => handlePhotoClick('photoBefore')}
+                  className="aspect-video bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+                >
+                  {photoBefore ? <img src={photoBefore} className="w-full h-full object-cover" /> : <Camera size={20} className="text-white/20" />}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-white/40 uppercase">Foto Po</label>
+                <div 
+                  onClick={() => handlePhotoClick('photoAfter')}
+                  className="aspect-video bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+                >
+                  {photoAfter ? <img src={photoAfter} className="w-full h-full object-cover" /> : <Camera size={20} className="text-white/20" />}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {formData.taskPerformed === 'Inštalácia' && (
+          <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-white/40 uppercase">Foto Kotol</label>
+                <div 
+                  onClick={() => handlePhotoClick('photoBoiler')}
+                  className="aspect-square bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+                >
+                  {photoBoiler ? <img src={photoBoiler} className="w-full h-full object-cover" /> : <Camera size={20} className="text-white/20" />}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-white/40 uppercase">Foto Napojenie</label>
+                <div 
+                  onClick={() => handlePhotoClick('photoConnection')}
+                  className="aspect-square bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+                >
+                  {photoConnection ? <img src={photoConnection} className="w-full h-full object-cover" /> : <Camera size={20} className="text-white/20" />}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-white/40 uppercase">Foto Komín</label>
+                <div 
+                  onClick={() => handlePhotoClick('photoChimney')}
+                  className="aspect-square bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+                >
+                  {photoChimney ? <img src={photoChimney} className="w-full h-full object-cover" /> : <Camera size={20} className="text-white/20" />}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {formData.taskPerformed !== 'Ročná prehliadka' && formData.taskPerformed !== 'Porucha' && formData.taskPerformed !== 'Inštalácia' && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in duration-300">
             <div className="space-y-2">
               <label className="text-sm font-bold text-white/70">CO2 Hodnota (%)</label>
@@ -2091,7 +2282,7 @@ const ServiceForm = ({
               <Camera size={18} /> Fotografia stavu
             </label>
             <div 
-              onClick={handlePhotoClick}
+              onClick={() => handlePhotoClick('photo')}
               className="aspect-video bg-white/5 rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden"
             >
               {photo ? (
@@ -2132,8 +2323,19 @@ const ServiceForm = ({
           <button onClick={onCancel} className="btn-secondary flex-1 justify-center">Zrušiť</button>
           <button 
             onClick={() => {
-              const signature = sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
-              onSubmit({...formData, status: ServiceStatus.COMPLETED, photo: photo || undefined, signature});
+              const canvas = sigCanvas.current?.getCanvas();
+              const signature = canvas ? trimCanvas(canvas).toDataURL('image/png') : undefined;
+              onSubmit({
+                ...formData, 
+                status: ServiceStatus.COMPLETED, 
+                photo: photo || undefined,
+                photoBefore: photoBefore || undefined,
+                photoAfter: photoAfter || undefined,
+                photoBoiler: photoBoiler || undefined,
+                photoConnection: photoConnection || undefined,
+                photoChimney: photoChimney || undefined,
+                signature
+              });
             }}
             className="btn-primary flex-1 justify-center"
             disabled={
@@ -2213,7 +2415,7 @@ const ServicesList = ({
         </div>
         
         <div className="h-24 w-full mt-4">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={96}>
             <AreaChart data={trendData}>
               <defs>
                 <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
@@ -2454,9 +2656,21 @@ const ContactModal = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="card w-full max-w-md p-6 relative z-10 overflow-y-auto max-h-[90vh]"
       >
-        <h2 className="text-xl font-bold text-white mb-6">
-          {editingContact ? 'Upraviť kontakt' : 'Nový kontakt'}
-        </h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-white">
+            {editingContact ? 'Upraviť kontakt' : 'Nový kontakt'}
+          </h2>
+          {editingContact && (
+            <button 
+              type="button"
+              onClick={() => onDelete(editingContact.id)}
+              className="p-2 text-white hover:bg-white/10 rounded-xl transition-all"
+              title="Vymazať kontakt"
+            >
+              <Trash2 size={20} />
+            </button>
+          )}
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
@@ -2520,15 +2734,6 @@ const ContactModal = ({
           </div>
 
           <div className="flex gap-3 pt-4">
-            {editingContact && (
-              <button 
-                type="button"
-                onClick={() => onDelete(editingContact.id)}
-                className="btn-secondary text-[#C14F4F] hover:bg-[#C14F4F]/10 border-[#C14F4F]/20"
-              >
-                Vymazať
-              </button>
-            )}
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Zrušiť</button>
             <button type="submit" className="btn-primary flex-1">Uložiť</button>
           </div>
@@ -2744,9 +2949,14 @@ export default function App() {
     if (!activeServiceBoilerId) return;
 
     try {
+      // Clean data to remove undefined values
+      const cleanServiceData = Object.fromEntries(
+        Object.entries(serviceData).filter(([_, v]) => v !== undefined)
+      );
+
       if (editingServiceId) {
         const serviceRef = doc(db, 'services', editingServiceId);
-        await updateDoc(serviceRef, { ...serviceData });
+        await updateDoc(serviceRef, cleanServiceData);
       } else {
         const serviceId = `s${Date.now()}`;
         const newService: ServiceRecord = {
@@ -2757,11 +2967,8 @@ export default function App() {
           co2Value: serviceData.co2Value || 0,
           pressureValue: serviceData.pressureValue || 0,
           status: serviceData.status || ServiceStatus.COMPLETED,
-          technicianNotes: serviceData.technicianNotes,
-          photo: serviceData.photo,
-          // Include other detailed fields if present
-          ...serviceData
-        };
+          ...cleanServiceData
+        } as ServiceRecord;
 
         await setDoc(doc(db, 'services', serviceId), newService);
 
@@ -2770,10 +2977,17 @@ export default function App() {
         nextDate.setFullYear(nextDate.getFullYear() + 1);
         
         const boilerRef = doc(db, 'boilers', activeServiceBoilerId);
-        await updateDoc(boilerRef, {
+        const boilerUpdate: any = {
           lastServiceDate: newService.date,
           nextServiceDate: nextDate.toISOString().split('T')[0]
-        });
+        };
+
+        // If task is installation, update installDate
+        if (newService.taskPerformed === 'Inštalácia') {
+          boilerUpdate.installDate = newService.date;
+        }
+
+        await updateDoc(boilerRef, boilerUpdate);
       }
 
       setActiveTab('customerDetail');
@@ -2787,21 +3001,33 @@ export default function App() {
   const handleAddCustomer = async (newCust: Omit<Customer, 'id'>, boilerData?: Omit<Boiler, 'id' | 'customerId'>) => {
     try {
       const customerId = `c${Date.now()}`;
+      
+      // Clean customer data
+      const cleanCust = Object.fromEntries(
+        Object.entries(newCust).filter(([_, v]) => v !== undefined && v !== '')
+      );
+
       const customer: Customer = { 
-        ...newCust, 
+        ...cleanCust, 
         id: customerId,
         createdAt: new Date().toISOString()
-      };
+      } as Customer;
       
       await setDoc(doc(db, 'customers', customerId), customer);
 
       if (boilerData) {
         const boilerId = `b${Date.now()}`;
+        
+        // Clean boiler data
+        const cleanBoiler = Object.fromEntries(
+          Object.entries(boilerData).filter(([_, v]) => v !== undefined)
+        );
+
         const boiler: Boiler = { 
-          ...boilerData, 
+          ...cleanBoiler, 
           id: boilerId, 
           customerId 
-        };
+        } as Boiler;
         await setDoc(doc(db, 'boilers', boilerId), boiler);
       }
 
@@ -3077,7 +3303,7 @@ export default function App() {
           <div className="md:hidden flex justify-between items-center mb-6">
             <div className="flex items-center gap-2">
               <img 
-                src="/image_4.png" 
+                src="/logo.png" 
                 onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/logo/200/200'; }}
                 alt="Logo" 
                 className="h-8 w-auto object-contain" 
@@ -3124,9 +3350,20 @@ export default function App() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               className="card w-full max-w-2xl p-6 space-y-6"
             >
-              <h2 className="text-xl font-bold text-[#3A87AD]">
-                {editingBoilerId ? 'Upraviť zariadenie' : 'Pridať nové zariadenie'}
-              </h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-[#3A87AD]">
+                  {editingBoilerId ? 'Upraviť zariadenie' : 'Pridať nové zariadenie'}
+                </h2>
+                {editingBoilerId && (
+                  <button 
+                    type="button"
+                    onClick={() => handleDeleteBoiler(editingBoilerId)}
+                    className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                )}
+              </div>
               <form onSubmit={(e) => { e.preventDefault(); handleAddBoiler(newBoilerData); }} className="space-y-4">
                 <BoilerFormFields 
                   boilerData={newBoilerData} 
@@ -3134,15 +3371,6 @@ export default function App() {
                   existingBoilers={data.boilers} 
                 />
                 <div className="flex gap-3 pt-4 border-t border-white/5">
-                  {editingBoilerId && (
-                    <button 
-                      type="button"
-                      onClick={() => handleDeleteBoiler(editingBoilerId)}
-                      className="btn-secondary text-[#C14F4F] hover:bg-[#C14F4F]/10 border-[#C14F4F]/20"
-                    >
-                      Vymazať
-                    </button>
-                  )}
                   <button type="button" onClick={() => { setIsBoilerModalOpen(false); setEditingBoilerId(null); }} className="btn-secondary flex-1 justify-center">Zrušiť</button>
                   <button type="submit" className="btn-primary flex-1 justify-center">Uložiť zariadenie</button>
                 </div>

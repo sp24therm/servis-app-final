@@ -44,6 +44,16 @@ export interface ServiceRecord {
   airSupplyVentilation?: boolean;
   emergencyStatesCheck?: boolean;
   bondingProtection?: boolean;
+
+  // New dynamic fields
+  faultDescription?: string;
+  faultFixed?: boolean;
+  hasFlueGasAnalysis?: boolean;
+  photoBefore?: string;
+  photoAfter?: string;
+  photoBoiler?: string;
+  photoConnection?: string;
+  photoChimney?: string;
 }
 
 export interface Boiler {

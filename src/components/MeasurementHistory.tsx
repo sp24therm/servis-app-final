@@ -49,7 +49,7 @@ const MeasurementHistory = ({ services }: { services: ServiceRecord[] }) => {
           Analýza spalín (CO2, O2, Účinnosť)
         </h3>
         <div className="h-[250px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={250}>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="date" fontSize={10} tick={{ fill: 'rgba(255,255,255,0.4)' }} />
@@ -75,7 +75,7 @@ const MeasurementHistory = ({ services }: { services: ServiceRecord[] }) => {
           Chemické hodnoty ÚK (pH, Tvrdosť, Vodivosť)
         </h3>
         <div className="h-[250px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={250}>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="date" fontSize={10} tick={{ fill: 'rgba(255,255,255,0.4)' }} />

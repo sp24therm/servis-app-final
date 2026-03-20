@@ -116,34 +116,11 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
-    // Allow authenticated users to read and write all data (shared database)
-    // In a real production app, we might want more granular control, but for this
-    // "colleague and I" request, shared access is appropriate.
-
-    match /customers/{customerId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidCustomer(request.resource.data);
-      allow update: if isAuthenticated() && isValidCustomer(request.resource.data);
-      allow delete: if isAdmin();
-    }
-
-    match /boilers/{boilerId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidBoiler(request.resource.data);
-      allow update: if isAuthenticated() && isValidBoiler(request.resource.data);
-      allow delete: if isAdmin();
-    }
-
-    match /services/{serviceId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidService(request.resource.data);
-      allow update: if isAuthenticated() && isValidService(request.resource.data);
-      allow delete: if isAdmin();
-    }
-
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+    // Allow all authenticated users to read and write all data
+    // This is simplified as requested to allow saving incomplete data
+    
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
     }
   }
 }
