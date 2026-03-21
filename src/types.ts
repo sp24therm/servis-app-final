@@ -15,6 +15,7 @@ export interface ServiceRecord {
   status: ServiceStatus;
   technicianNotes?: string;
   signature?: string; // Base64 or URL
+  customerSignature?: string; // Base64 or URL
   photo?: string; // Base64 or URL
 
   // Detailed "Ročný servis" fields
@@ -91,7 +92,8 @@ export interface Customer {
 export interface Contact {
   id: string;
   name: string;
-  specialization: string; // e.g. "Servisný technik", "Predajňa", "Inštalatér"
+  company?: string;
+  specialization?: string; // e.g. "Servisný technik", "Predajňa", "Inštalatér"
   phone: string;
   email?: string;
   address?: string;
