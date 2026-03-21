@@ -28,7 +28,9 @@ import {
   Trash2,
   Download,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  X,
+  Scan
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -64,12 +66,14 @@ let DefaultIcon = L.icon({
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
+import Tesseract from 'tesseract.js';
 import { 
   auth, 
   db, 
   storage,
   handleFirestoreError, 
-  OperationType 
+  OperationType,
+  uploadFile
 } from './firebase';
 import { 
   signInWithPopup, 
@@ -90,12 +94,17 @@ import {
 } from 'firebase/firestore';
 import { 
   ref, 
-  uploadBytes, 
-  getDownloadURL 
+  getDownloadURL,
+  uploadBytes
 } from 'firebase/storage';
+import { Html5Qrcode } from 'html5-qrcode';
 import { AppState, Customer, Boiler, ServiceRecord, ServiceStatus, Contact } from './types';
 
 // --- Helper Functions ---
+
+const removeDiacritics = (str: string) => {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+};
 
 const trimCanvas = (canvas: HTMLCanvasElement) => {
   const ctx = canvas.getContext('2d');
@@ -346,8 +355,14 @@ const Dashboard = ({
     boilers.forEach(b => {
       counts[b.brand] = (counts[b.brand] || 0) + 1;
     });
-    return Object.entries(counts).map(([name, value]) => ({ name: `${name} (${value})`, value, originalName: name }));
+    const sorted = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value]) => ({ name, value }));
+    
+    return sorted;
   }, [boilers]);
+
+  const top6Brands = useMemo(() => brandData.slice(0, 6), [brandData]);
 
   const serviceTypeData = useMemo(() => {
     const counts: Record<string, number> = {
@@ -532,6 +547,12 @@ const Dashboard = ({
                   outerRadius={100}
                   paddingAngle={5}
                   dataKey="value"
+                  label={({ name, percent, index }) => {
+                    if (index < 5) {
+                      return `${name} ${(percent * 100).toFixed(0)}%`;
+                    }
+                    return null;
+                  }}
                 >
                   {brandData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -540,9 +561,19 @@ const Dashboard = ({
                 <RechartsTooltip 
                   contentStyle={{ backgroundColor: '#1E1E1E', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
                   itemStyle={{ color: '#E0E0E0' }}
-                  formatter={(value: number, name: string) => [value, name.split(' (')[0]]}
                 />
-                <Legend verticalAlign="bottom" height={36}/>
+                <Legend 
+                  {...({ 
+                    verticalAlign: "bottom", 
+                    height: 36,
+                    payload: top6Brands.map((item, index) => ({
+                      value: `${item.name} (${item.value})`,
+                      type: 'circle',
+                      id: item.name,
+                      color: COLORS[index % COLORS.length]
+                    }))
+                  } as any)}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -620,10 +651,32 @@ const Dashboard = ({
   );
 };
 
-const AddressSearch = ({ value, onChange, onSelect }: { value: string, onChange: (v: string) => void, onSelect: (addr: string, lat: number, lng: number) => void }) => {
+const AddressSearch = ({ 
+  value, 
+  onChange, 
+  onSelect,
+  autoOpen = true
+}: { 
+  value: string, 
+  onChange: (v: string) => void, 
+  onSelect: (addr: string, lat: number, lng: number) => void,
+  autoOpen?: boolean
+}) => {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [ignoreNext, setIgnoreNext] = useState(false);
+
+  useEffect(() => {
+    if (!autoOpen) return;
+    // No auto-open logic needed here if we just want to prevent it in BoilerForm
+  }, [autoOpen]);
+
+  useEffect(() => {
+    if (autoOpen && !value && !results.length) {
+      // Trigger a search or just open the dropdown if we had a way to force it
+      // For now, we'll just ensure the dropdown logic is ready
+    }
+  }, [autoOpen, value]);
 
   useEffect(() => {
     if (value.length < 3 || ignoreNext) {
@@ -686,17 +739,20 @@ const AddressSearch = ({ value, onChange, onSelect }: { value: string, onChange:
 const BoilerFormFields = ({ 
   boilerData, 
   setBoilerData, 
-  existingBoilers 
+  existingBoilers,
+  setIsScannerOpen
 }: { 
   boilerData: any, 
   setBoilerData: any, 
-  existingBoilers: Boiler[] 
+  existingBoilers: Boiler[],
+  setIsScannerOpen: (v: boolean) => void
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activePhotoType, setActivePhotoType] = useState<string | null>(null);
 
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [scanning, setScanning] = useState(false);
   const scannerInputRef = useRef<HTMLInputElement>(null);
 
   const brands = useMemo(() => Array.from(new Set(existingBoilers.map(b => b.brand))), [existingBoilers]);
@@ -741,13 +797,43 @@ const BoilerFormFields = ({
     scannerInputRef.current?.click();
   };
 
-  const onScanFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // This is a placeholder for OCR, but it opens the camera as requested
+  const onScanFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      console.log("Scanner image captured:", file.name);
-      // In a real app, you'd use Tesseract.js or similar here
-      alert("Fotka sériového čísla bola zachytená. Pre automatické čítanie textu je potrebná OCR knižnica.");
+      setScanning(true);
+      try {
+        const { data: { text } } = await Tesseract.recognize(file, 'slk+eng', {
+          logger: m => console.log(m)
+        });
+        
+        // Try to find a serial number pattern (e.g., alphanumeric, 8+ chars)
+        const lines = text.split('\n');
+        let foundSerial = '';
+        
+        // Simple heuristic: look for lines that look like serial numbers
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.length >= 8 && /^[A-Z0-9-]+$/i.test(trimmed)) {
+            foundSerial = trimmed;
+            break;
+          }
+        }
+
+        if (foundSerial) {
+          setBoilerData((prev: any) => ({ ...prev, serialNumber: foundSerial }));
+          alert(`Rozpoznané sériové číslo: ${foundSerial}`);
+        } else {
+          // If no pattern found, just take the first non-empty line or first 15 chars
+          const firstLine = lines.find(l => l.trim().length > 5)?.trim() || text.substring(0, 20).trim();
+          setBoilerData((prev: any) => ({ ...prev, serialNumber: firstLine }));
+          alert(`Rozpoznaný text: ${firstLine}`);
+        }
+      } catch (error) {
+        console.error("OCR failed", error);
+        alert("Rozpoznávanie textu zlyhalo.");
+      } finally {
+        setScanning(false);
+      }
     }
   };
 
@@ -774,6 +860,7 @@ const BoilerFormFields = ({
             value={boilerData.address} 
             onChange={v => setBoilerData({...boilerData, address: v})}
             onSelect={(addr, lat, lng) => setBoilerData({...boilerData, address: addr, lat, lng})}
+            autoOpen={!boilerData.address}
           />
         </div>
       </div>
@@ -817,21 +904,13 @@ const BoilerFormFields = ({
               value={boilerData.serialNumber}
               onChange={e => setBoilerData({...boilerData, serialNumber: e.target.value})}
             />
-            <input 
-              type="file" 
-              ref={scannerInputRef} 
-              className="hidden" 
-              accept="image/*" 
-              capture="environment"
-              onChange={onScanFileChange}
-            />
             <button 
               type="button" 
-              onClick={handleScanClick}
-              className="p-2 bg-white/5 rounded-xl hover:bg-white/10 text-white/60" 
+              onClick={() => setIsScannerOpen(true)}
+              className="p-2 bg-[#3A87AD]/10 rounded-xl hover:bg-[#3A87AD] text-[#3A87AD] hover:text-white transition-all" 
               title="Skenovať"
             >
-              <Camera size={20} />
+              <Scan size={20} />
             </button>
           </div>
         </div>
@@ -921,18 +1000,21 @@ const CustomerList = ({
     onEditCustomer(customer);
   };
 
-  const filteredCustomers = customers.filter(c => {
-    const searchLower = search.toLowerCase();
-    const customerBoilers = boilers.filter(b => b.customerId === c.id);
-    const hasMatchingBoilerBrand = customerBoilers.some(b => b.brand.toLowerCase().includes(searchLower));
-    const hasMatchingBoilerModel = customerBoilers.some(b => b.model.toLowerCase().includes(searchLower));
-    
-    return c.name.toLowerCase().includes(searchLower) || 
-      c.phone.includes(search) ||
-      (c.company && c.company.toLowerCase().includes(searchLower)) ||
-      hasMatchingBoilerBrand ||
-      hasMatchingBoilerModel;
-  });
+  const filteredCustomers = useMemo(() => {
+    if (!search) return customers;
+    const normalizedSearch = removeDiacritics(search).toLowerCase();
+    return customers.filter(c => {
+      const customerBoilers = boilers.filter(b => b.customerId === c.id);
+      const matchesName = removeDiacritics(c.name).toLowerCase().includes(normalizedSearch);
+      const matchesPhone = c.phone.includes(search);
+      const matchesCompany = c.company ? removeDiacritics(c.company).toLowerCase().includes(normalizedSearch) : false;
+      const matchesBoiler = customerBoilers.some(b => 
+        removeDiacritics(b.model).toLowerCase().includes(normalizedSearch) || 
+        removeDiacritics(b.brand).toLowerCase().includes(normalizedSearch)
+      );
+      return matchesName || matchesPhone || matchesCompany || matchesBoiler;
+    });
+  }, [customers, boilers, search]);
 
   const customerTrendData = useMemo(() => {
     const months = [];
@@ -1046,7 +1128,11 @@ const CustomerList = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-white leading-tight">{customer.name}</h3>
-                    {mainBoiler && <span className="text-[10px] bg-[#3A87AD]/10 text-[#3A87AD] px-1.5 py-0.5 rounded-md font-bold uppercase">{mainBoiler.brand}</span>}
+                    <div className="flex flex-wrap gap-1">
+                      {Array.from(new Set(customerBoilers.map(b => b.brand))).map(brand => (
+                        <span key={brand} className="text-[10px] bg-[#3A87AD]/10 text-[#3A87AD] px-1.5 py-0.5 rounded-md font-bold uppercase">{brand}</span>
+                      ))}
+                    </div>
                   </div>
                   {customer.company && <p className="text-xs text-white/40 mt-0.5">{customer.company}</p>}
                   
@@ -1090,7 +1176,8 @@ const CustomerModal = ({
   onDelete,
   editingCustomer,
   customers,
-  boilers 
+  boilers,
+  setIsScannerOpen
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
@@ -1099,7 +1186,8 @@ const CustomerModal = ({
   onDelete: (id: string) => void,
   editingCustomer: Customer | null,
   customers: Customer[],
-  boilers: Boiler[]
+  boilers: Boiler[],
+  setIsScannerOpen: (v: boolean) => void
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [newCustomer, setNewCustomer] = useState({ name: '', company: '', phone: '', email: '', notes: '' });
@@ -1192,7 +1280,7 @@ const CustomerModal = ({
             <button 
               type="button"
               onClick={() => onDelete(editingCustomer.id)}
-              className="p-2 text-white hover:bg-white/10 rounded-xl transition-all"
+              className="p-2 text-white hover:bg-red-500 rounded-xl transition-all"
               title="Vymazať zákazníka"
             >
               <Trash2 size={20} />
@@ -1278,6 +1366,7 @@ const CustomerModal = ({
               boilerData={newBoiler} 
               setBoilerData={setNewBoiler} 
               existingBoilers={boilers} 
+              setIsScannerOpen={setIsScannerOpen}
             />
           )}
 
@@ -1493,7 +1582,8 @@ const CustomerDetail = ({
   onAddBoiler,
   onEditBoiler,
   onEditCustomer,
-  onSelectService
+  onSelectService,
+  setSelectedBoilerId
 }: { 
   customer: Customer, 
   boilers: Boiler[], 
@@ -1503,7 +1593,8 @@ const CustomerDetail = ({
   onAddBoiler: (customerId: string) => void,
   onEditBoiler: (boilerId: string) => void,
   onEditCustomer: (customer: Customer) => void,
-  onSelectService: (serviceId: string) => void
+  onSelectService: (serviceId: string) => void,
+  setSelectedBoilerId: (id: string) => void
 }) => {
   const customerBoilers = boilers.filter(b => b.customerId === customer.id);
   const [expandedBoilers, setExpandedBoilers] = useState<Record<string, boolean>>({});
@@ -1595,6 +1686,13 @@ const CustomerDetail = ({
                         title="Navigovať"
                       >
                         <MapPin size={14} />
+                      </button>
+                      <button 
+                        onClick={() => setSelectedBoilerId(boiler.id)}
+                        className="p-1.5 bg-white/5 text-white/40 rounded-lg hover:bg-white/10 hover:text-[#3A87AD] transition-colors"
+                        title="Detail zariadenia"
+                      >
+                        <Info size={14} />
                       </button>
                     </div>
                     <p className="text-xs text-[#3A87AD] font-medium mt-0.5">
@@ -1845,7 +1943,10 @@ const ServiceForm = ({
     // New dynamic fields
     faultDescription: initialData?.faultDescription || '',
     faultFixed: initialData?.faultFixed || false,
-    hasFlueGasAnalysis: initialData?.hasFlueGasAnalysis || false,
+    hasFlueGasAnalysis: initialData?.hasFlueGasAnalysis || (initialData?.taskPerformed === 'Porucha' || initialData?.taskPerformed === 'Iné'),
+    spareParts: initialData?.spareParts || [],
+    useAsInstallDate: false,
+    showSpareParts: false,
     burnerCheck: initialData?.burnerCheck ?? null,
     combustionChamberCleaning: initialData?.combustionChamberCleaning ?? null,
     electrodesCheck: initialData?.electrodesCheck ?? null,
@@ -1888,9 +1989,8 @@ const ServiceForm = ({
       const file = e.target.files?.[0];
       if (file) {
         try {
-          const storageRef = ref(storage, `services/${Date.now()}_${file.name}`);
-          const snapshot = await uploadBytes(storageRef, file);
-          const downloadURL = await getDownloadURL(snapshot.ref);
+          const path = `services/${boiler.id}/${Date.now()}_${file.name}`;
+          const downloadURL = await uploadFile(file, path);
           if (type === 'photo') setPhoto(downloadURL);
           else if (type === 'photoBefore') setPhotoBefore(downloadURL);
           else if (type === 'photoAfter') setPhotoAfter(downloadURL);
@@ -1899,10 +1999,20 @@ const ServiceForm = ({
           else if (type === 'photoChimney') setPhotoChimney(downloadURL);
         } catch (error) {
           console.error("Upload failed", error);
+          alert("Nahrávanie zlyhalo. Skontrolujte pripojenie.");
         }
       }
     };
     input.click();
+  };
+
+  const removePhoto = (type: string) => {
+    if (type === 'photo') setPhoto(null);
+    else if (type === 'photoBefore') setPhotoBefore(null);
+    else if (type === 'photoAfter') setPhotoAfter(null);
+    else if (type === 'photoBoiler') setPhotoBoiler(null);
+    else if (type === 'photoConnection') setPhotoConnection(null);
+    else if (type === 'photoChimney') setPhotoChimney(null);
   };
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1984,6 +2094,7 @@ const ServiceForm = ({
                 onChange={(e) => setFormData({...formData, faultDescription: e.target.value})}
               />
             </div>
+            
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input 
@@ -2034,23 +2145,106 @@ const ServiceForm = ({
               </div>
             )}
 
+            {/* Spare Parts Accordion */}
+            <div className="border border-white/10 rounded-2xl overflow-hidden">
+              <button 
+                type="button"
+                onClick={() => setFormData({...formData, showSpareParts: !formData.showSpareParts})}
+                className="w-full p-4 flex justify-between items-center bg-white/5 hover:bg-white/10 transition-colors"
+              >
+                <span className="font-bold text-white flex items-center gap-2">
+                  <Wrench size={18} className="text-[#3A87AD]" />
+                  Použité náhradné diely
+                </span>
+                {formData.showSpareParts ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
+              {formData.showSpareParts && (
+                <div className="p-4 space-y-4 bg-black/20">
+                  {formData.spareParts.map((part, index) => (
+                    <div key={index} className="flex gap-2">
+                      <input 
+                        className="input-field flex-1" 
+                        placeholder="Názov dielu" 
+                        value={part.name}
+                        onChange={e => {
+                          const newParts = [...formData.spareParts];
+                          newParts[index].name = e.target.value;
+                          setFormData({...formData, spareParts: newParts});
+                        }}
+                      />
+                      <input 
+                        type="number" 
+                        className="input-field w-20" 
+                        placeholder="Ks" 
+                        value={part.quantity}
+                        onChange={e => {
+                          const newParts = [...formData.spareParts];
+                          newParts[index].quantity = parseInt(e.target.value) || 0;
+                          setFormData({...formData, spareParts: newParts});
+                        }}
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const newParts = formData.spareParts.filter((_, i) => i !== index);
+                          setFormData({...formData, spareParts: newParts});
+                        }}
+                        className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  ))}
+                  <button 
+                    type="button"
+                    onClick={() => setFormData({...formData, spareParts: [...formData.spareParts, { name: '', quantity: 1 }]})}
+                    className="w-full py-2 border border-dashed border-white/20 rounded-xl text-xs font-bold text-white/40 hover:text-white hover:border-white/40 transition-all"
+                  >
+                    + Pridať diel
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-white/40 uppercase">Foto Pred</label>
-                <div 
-                  onClick={() => handlePhotoClick('photoBefore')}
-                  className="aspect-video bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer overflow-hidden"
-                >
-                  {photoBefore ? <img src={photoBefore} className="w-full h-full object-cover" /> : <Camera size={20} className="text-white/20" />}
+                <div className="relative aspect-video bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center overflow-hidden">
+                  {photoBefore ? (
+                    <div className="relative w-full h-full group">
+                      <img src={photoBefore} className="w-full h-full object-cover" />
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); removePhoto('photoBefore'); }} 
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div onClick={() => handlePhotoClick('photoBefore')} className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                      <Camera size={20} className="text-white/20" />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-white/40 uppercase">Foto Po</label>
-                <div 
-                  onClick={() => handlePhotoClick('photoAfter')}
-                  className="aspect-video bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer overflow-hidden"
-                >
-                  {photoAfter ? <img src={photoAfter} className="w-full h-full object-cover" /> : <Camera size={20} className="text-white/20" />}
+                <div className="relative aspect-video bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center overflow-hidden">
+                  {photoAfter ? (
+                    <div className="relative w-full h-full group">
+                      <img src={photoAfter} className="w-full h-full object-cover" />
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); removePhoto('photoAfter'); }} 
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div onClick={() => handlePhotoClick('photoAfter')} className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                      <Camera size={20} className="text-white/20" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2059,69 +2253,118 @@ const ServiceForm = ({
 
         {formData.taskPerformed === 'Inštalácia' && (
           <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="w-4 h-4 rounded text-[#3A87AD] bg-black/40 border-white/10" 
+                  checked={formData.useAsInstallDate} 
+                  onChange={e => setFormData({...formData, useAsInstallDate: e.target.checked})} 
+                />
+                <span className="text-sm font-bold text-white/70">Použiť ako dátum montáže</span>
+              </label>
+              <p className="text-[10px] text-white/30 mt-1 ml-6 italic">Prepíše pôvodný dátum inštalácie v dokumente zariadenia.</p>
+            </div>
+
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-white/40 uppercase">Foto Kotol</label>
-                <div 
-                  onClick={() => handlePhotoClick('photoBoiler')}
-                  className="aspect-square bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer overflow-hidden"
-                >
-                  {photoBoiler ? <img src={photoBoiler} className="w-full h-full object-cover" /> : <Camera size={20} className="text-white/20" />}
+                <div className="relative aspect-square bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center overflow-hidden">
+                  {photoBoiler ? (
+                    <>
+                      <img src={photoBoiler} className="w-full h-full object-cover" />
+                      <button onClick={() => removePhoto('photoBoiler')} className="absolute top-2 right-2 p-1 bg-black/60 text-white rounded-full hover:bg-black/80">
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <div onClick={() => handlePhotoClick('photoBoiler')} className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                      <Camera size={20} className="text-white/20" />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-white/40 uppercase">Foto Napojenie</label>
-                <div 
-                  onClick={() => handlePhotoClick('photoConnection')}
-                  className="aspect-square bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer overflow-hidden"
-                >
-                  {photoConnection ? <img src={photoConnection} className="w-full h-full object-cover" /> : <Camera size={20} className="text-white/20" />}
+                <div className="relative aspect-square bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center overflow-hidden">
+                  {photoConnection ? (
+                    <>
+                      <img src={photoConnection} className="w-full h-full object-cover" />
+                      <button onClick={() => removePhoto('photoConnection')} className="absolute top-2 right-2 p-1 bg-black/60 text-white rounded-full hover:bg-black/80">
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <div onClick={() => handlePhotoClick('photoConnection')} className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                      <Camera size={20} className="text-white/20" />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-white/40 uppercase">Foto Komín</label>
-                <div 
-                  onClick={() => handlePhotoClick('photoChimney')}
-                  className="aspect-square bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer overflow-hidden"
-                >
-                  {photoChimney ? <img src={photoChimney} className="w-full h-full object-cover" /> : <Camera size={20} className="text-white/20" />}
+                <div className="relative aspect-square bg-white/5 rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center overflow-hidden">
+                  {photoChimney ? (
+                    <>
+                      <img src={photoChimney} className="w-full h-full object-cover" />
+                      <button onClick={() => removePhoto('photoChimney')} className="absolute top-2 right-2 p-1 bg-black/60 text-white rounded-full hover:bg-black/80">
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <div onClick={() => handlePhotoClick('photoChimney')} className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                      <Camera size={20} className="text-white/20" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {formData.taskPerformed !== 'Ročná prehliadka' && formData.taskPerformed !== 'Porucha' && formData.taskPerformed !== 'Inštalácia' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in duration-300">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-white/70">CO2 Hodnota (%)</label>
-              <input 
-                type="number" 
-                step="0.1" 
-                className="input-field"
-                value={formData.co2Value}
-                onChange={(e) => setFormData({...formData, co2Value: parseFloat(e.target.value)})}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-white/70">CO (ppm)</label>
-              <input 
-                type="number" 
-                step="1" 
-                className="input-field"
-                value={formData.coValue}
-                onChange={(e) => setFormData({...formData, coValue: parseInt(e.target.value)})}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-white/70">Tlak (bar)</label>
-              <input 
-                type="number" 
-                step="0.1" 
-                className="input-field"
-                value={formData.pressureValue}
-                onChange={(e) => setFormData({...formData, pressureValue: parseFloat(e.target.value)})}
-              />
+        {formData.taskPerformed === 'Iné' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="border-t border-white/5 pt-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <PieChartIcon size={20} className="text-[#3A87AD]" />
+                Analýza spalín a tlaky
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">CO2 Max (%)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.co2Max} onChange={e => setFormData({...formData, co2Max: parseFloat(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">CO2 Min (%)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.co2Min} onChange={e => setFormData({...formData, co2Min: parseFloat(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">CO (ppm)</label>
+                  <input type="number" step="1" className="input-field py-1.5" value={formData.coValue} onChange={e => setFormData({...formData, coValue: parseInt(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">Účinnosť (%)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.efficiency} onChange={e => setFormData({...formData, efficiency: parseFloat(e.target.value)})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">O2 Max (%)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.o2Max} onChange={e => setFormData({...formData, o2Max: parseFloat(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">O2 Min (%)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.o2Min} onChange={e => setFormData({...formData, o2Min: parseFloat(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">Tlak plynu (mbar)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.gasPressure} onChange={e => setFormData({...formData, gasPressure: parseFloat(e.target.value)})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-white/40 uppercase">Tlak exp. ÚK (bar)</label>
+                  <input type="number" step="0.1" className="input-field py-1.5" value={formData.expansionTankPressureCH} onChange={e => setFormData({...formData, expansionTankPressureCH: parseFloat(e.target.value)})} />
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -2471,7 +2714,15 @@ const ServicesList = ({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-white">{customer?.name}</h3>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        customer && onSelectCustomer(customer.id);
+                      }}
+                      className="font-bold text-white hover:text-[#3A87AD] transition-colors"
+                    >
+                      {customer?.name}
+                    </button>
                     <span className="text-[10px] bg-[#3A87AD]/10 text-[#3A87AD] px-1.5 py-0.5 rounded-md font-bold uppercase">{boiler?.brand}</span>
                   </div>
                   <p className="text-sm text-white/40">{service.taskPerformed} • {new Date(service.date).toLocaleDateString('sk-SK')}</p>
@@ -2501,7 +2752,182 @@ const ServicesList = ({
   );
 };
 
-// --- Delete Confirmation Modal ---
+// --- Scanner Modal ---
+
+const ScannerModal = ({ 
+  onScan, 
+  onClose 
+}: { 
+  onScan: (text: string) => void, 
+  onClose: () => void 
+}) => {
+  const [error, setError] = useState<string | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+
+  useEffect(() => {
+    const startScanner = async () => {
+      try {
+        const html5QrCode = new Html5Qrcode("reader");
+        scannerRef.current = html5QrCode;
+        
+        const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+        
+        await html5QrCode.start(
+          { facingMode: "environment" }, 
+          config, 
+          (decodedText) => {
+            onScan(decodedText);
+            html5QrCode.stop().then(() => onClose());
+          },
+          (errorMessage) => {
+            // Silently ignore scan errors
+          }
+        );
+      } catch (err) {
+        console.error("Scanner error:", err);
+        setError("Nepodarilo sa spustiť kameru. Skontrolujte povolenia.");
+      }
+    };
+
+    startScanner();
+
+    return () => {
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(err => console.error("Stop error:", err));
+      }
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4">
+      <div className="w-full max-w-md bg-[#1E1E1E] rounded-3xl overflow-hidden border border-white/10">
+        <div className="p-4 border-b border-white/5 flex justify-between items-center">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <Scan size={20} className="text-[#3A87AD]" />
+            Skenovať S/N alebo čiarový kód
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-white/40">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-6">
+          <div id="reader" className="w-full aspect-video bg-black rounded-2xl overflow-hidden"></div>
+          {error && <p className="text-red-400 text-xs mt-4 text-center">{error}</p>}
+          <p className="text-white/40 text-[10px] mt-4 text-center italic">
+            Namierte kameru na čiarový kód alebo výrobné číslo na štítku.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Boiler Detail Modal ---
+
+const BoilerDetailModal = ({ 
+  boiler, 
+  services,
+  onClose,
+  onSelectService
+}: { 
+  boiler: Boiler, 
+  services: ServiceRecord[],
+  onClose: () => void,
+  onSelectService: (id: string) => void
+}) => {
+  const boilerServices = services
+    .filter(s => s.boilerId === boiler.id)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="w-full max-w-4xl bg-[#1E1E1E] rounded-3xl overflow-hidden border border-white/10 flex flex-col max-h-[90vh]">
+        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#3A87AD]/5">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-[#3A87AD]/20 rounded-2xl flex items-center justify-center text-[#3A87AD]">
+              <Wrench size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">{boiler.brand} {boiler.model}</h2>
+              <p className="text-sm text-white/40">S/N: {boiler.serialNumber}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-white/40">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+          {/* Photos Section */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Kotol</p>
+              <div className="aspect-video bg-white/5 rounded-2xl overflow-hidden border border-white/5">
+                {boiler.photos?.overall ? (
+                  <img src={boiler.photos.overall} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white/10 italic text-xs">Bez foto</div>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Napojenie</p>
+              <div className="aspect-video bg-white/5 rounded-2xl overflow-hidden border border-white/5">
+                {boiler.photos?.connection ? (
+                  <img src={boiler.photos.connection} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white/10 italic text-xs">Bez foto</div>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Komín</p>
+              <div className="aspect-video bg-white/5 rounded-2xl overflow-hidden border border-white/5">
+                {boiler.photos?.chimney ? (
+                  <img src={boiler.photos.chimney} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white/10 italic text-xs">Bez foto</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* History Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <History size={20} className="text-[#3A87AD]" />
+              História servisov
+            </h3>
+            <div className="space-y-3">
+              {boilerServices.length > 0 ? (
+                boilerServices.map(service => (
+                  <div 
+                    key={service.id} 
+                    onClick={() => onSelectService(service.id)}
+                    className="card p-4 flex items-center justify-between hover:border-[#3A87AD]/30 hover:bg-[#3A87AD]/5 cursor-pointer transition-all group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-white/5 text-white/60 rounded-xl flex items-center justify-center font-bold text-xs">
+                        {new Date(service.date).toLocaleDateString('sk-SK', { day: 'numeric', month: 'short' })}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white text-sm">{service.taskPerformed}</h4>
+                        <p className="text-xs text-white/40">{service.status} • {service.technicianNotes?.substring(0, 50)}...</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={18} className="text-white/20 group-hover:text-[#3A87AD]" />
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-white/20 italic text-center py-8">Žiadne servisné záznamy.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ContactsList = ({ 
   contacts,
@@ -2664,7 +3090,7 @@ const ContactModal = ({
             <button 
               type="button"
               onClick={() => onDelete(editingContact.id)}
-              className="p-2 text-white hover:bg-white/10 rounded-xl transition-all"
+              className="p-2 text-white hover:bg-red-500 rounded-xl transition-all"
               title="Vymazať kontakt"
             >
               <Trash2 size={20} />
@@ -2804,6 +3230,9 @@ export default function App() {
   const [boilerToDeleteId, setBoilerToDeleteId] = useState<string | null>(null);
   const [contactToDeleteId, setContactToDeleteId] = useState<string | null>(null);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [selectedBoilerId, setSelectedBoilerId] = useState<string | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const lastScrollY = useRef(0);
 
@@ -2982,8 +3411,8 @@ export default function App() {
           nextServiceDate: nextDate.toISOString().split('T')[0]
         };
 
-        // If task is installation, update installDate
-        if (newService.taskPerformed === 'Inštalácia') {
+        // If task is installation and useAsInstallDate is true, update installDate
+        if (newService.taskPerformed === 'Inštalácia' && (newService as any).useAsInstallDate) {
           boilerUpdate.installDate = newService.date;
         }
 
@@ -3255,6 +3684,7 @@ export default function App() {
               setIsCustomerModalOpen(true);
             }}
             onSelectService={setSelectedServiceId}
+            setSelectedBoilerId={setSelectedBoilerId}
           />
         );
       case 'serviceForm':
@@ -3358,7 +3788,8 @@ export default function App() {
                   <button 
                     type="button"
                     onClick={() => handleDeleteBoiler(editingBoilerId)}
-                    className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+                    className="p-2 text-white hover:bg-red-500 rounded-xl transition-all shadow-lg"
+                    title="Vymazať zariadenie"
                   >
                     <Trash2 size={20} />
                   </button>
@@ -3369,6 +3800,7 @@ export default function App() {
                   boilerData={newBoilerData} 
                   setBoilerData={setNewBoilerData} 
                   existingBoilers={data.boilers} 
+                  setIsScannerOpen={setIsScannerOpen}
                 />
                 <div className="flex gap-3 pt-4 border-t border-white/5">
                   <button type="button" onClick={() => { setIsBoilerModalOpen(false); setEditingBoilerId(null); }} className="btn-secondary flex-1 justify-center">Zrušiť</button>
@@ -3377,6 +3809,27 @@ export default function App() {
               </form>
             </motion.div>
           </div>
+        )}
+
+        {/* Scanner Modal */}
+        {isScannerOpen && (
+          <ScannerModal 
+            onScan={(text) => {
+              setNewBoilerData(prev => ({ ...prev, serialNumber: text }));
+              setIsScannerOpen(false);
+            }}
+            onClose={() => setIsScannerOpen(false)}
+          />
+        )}
+
+        {/* Boiler Detail Modal */}
+        {selectedBoilerId && (
+          <BoilerDetailModal 
+            boiler={data.boilers.find(b => b.id === selectedBoilerId)!}
+            services={data.services}
+            onClose={() => setSelectedBoilerId(null)}
+            onSelectService={setSelectedServiceId}
+          />
         )}
 
         {/* Service Detail Modal */}
@@ -3406,6 +3859,7 @@ export default function App() {
           editingCustomer={editingCustomerId ? data.customers.find(c => c.id === editingCustomerId) || null : null}
           customers={data.customers}
           boilers={data.boilers}
+          setIsScannerOpen={setIsScannerOpen}
         />
 
         {/* Contact Modal */}

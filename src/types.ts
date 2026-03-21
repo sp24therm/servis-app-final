@@ -54,6 +54,7 @@ export interface ServiceRecord {
   photoBoiler?: string;
   photoConnection?: string;
   photoChimney?: string;
+  spareParts?: { name: string; quantity: number }[];
 }
 
 export interface Boiler {

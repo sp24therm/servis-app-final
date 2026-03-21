@@ -50,20 +50,37 @@ const MeasurementHistory = ({ services }: { services: ServiceRecord[] }) => {
         </h3>
         <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="date" fontSize={10} tick={{ fill: 'rgba(255,255,255,0.4)' }} />
-              <YAxis fontSize={10} tick={{ fill: 'rgba(255,255,255,0.4)' }} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1E1E1E', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
-                itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#E0E0E0' }}
-              />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-              <Line type="monotone" dataKey="co2Max" name="CO2 Max (%)" stroke="#3A87AD" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="co" name="CO (ppm)" stroke="#C14F4F" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="efficiency" name="Účinnosť (%)" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="o2Max" name="O2 Max (%)" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
-            </LineChart>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
+                <XAxis 
+                  dataKey="date" 
+                  fontSize={10} 
+                  tick={{ fill: 'rgba(255,255,255,0.3)' }} 
+                  axisLine={false}
+                  tickLine={false}
+                  dy={10}
+                />
+                <YAxis 
+                  fontSize={10} 
+                  tick={{ fill: 'rgba(255,255,255,0.3)' }} 
+                  domain={['auto', 'auto']} 
+                  axisLine={false}
+                  tickLine={false}
+                  dx={-10}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1E1E1E', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
+                  itemStyle={{ fontSize: '11px', fontWeight: '600', color: '#E0E0E0' }}
+                  cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} />
+                <Line type="monotone" dataKey="co2Max" name="CO2 Max (%)" stroke="#3A87AD" strokeWidth={3} dot={{ r: 3, fill: '#3A87AD', strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="co2Min" name="CO2 Min (%)" stroke="#3A87AD" strokeWidth={1.5} strokeDasharray="4 4" dot={{ r: 2, fill: '#3A87AD', strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="co" name="CO (ppm)" stroke="#C14F4F" strokeWidth={2.5} dot={{ r: 3, fill: '#C14F4F', strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="efficiency" name="Účinnosť (%)" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3, fill: '#10b981', strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="o2Max" name="O2 Max (%)" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2, fill: '#f59e0b', strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="o2Min" name="O2 Min (%)" stroke="#f59e0b" strokeWidth={1} strokeDasharray="3 3" dot={{ r: 2, fill: '#f59e0b', strokeWidth: 0 }} />
+              </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -76,19 +93,34 @@ const MeasurementHistory = ({ services }: { services: ServiceRecord[] }) => {
         </h3>
         <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="date" fontSize={10} tick={{ fill: 'rgba(255,255,255,0.4)' }} />
-              <YAxis fontSize={10} tick={{ fill: 'rgba(255,255,255,0.4)' }} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1E1E1E', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
-                itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#E0E0E0' }}
-              />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-              <Line type="monotone" dataKey="ph" name="pH" stroke="#059669" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="hardness" name="Tvrdosť (°dH)" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="conductivity" name="Vodivosť (mS/cm)" stroke="#ec4899" strokeWidth={2} strokeDasharray="3 3" dot={{ r: 3 }} />
-            </LineChart>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
+                <XAxis 
+                  dataKey="date" 
+                  fontSize={10} 
+                  tick={{ fill: 'rgba(255,255,255,0.3)' }} 
+                  axisLine={false}
+                  tickLine={false}
+                  dy={10}
+                />
+                <YAxis 
+                  fontSize={10} 
+                  tick={{ fill: 'rgba(255,255,255,0.3)' }} 
+                  domain={['auto', 'auto']} 
+                  axisLine={false}
+                  tickLine={false}
+                  dx={-10}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1E1E1E', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
+                  itemStyle={{ fontSize: '11px', fontWeight: '600', color: '#E0E0E0' }}
+                  cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} />
+                <Line type="monotone" dataKey="ph" name="pH" stroke="#059669" strokeWidth={3} dot={{ r: 3, fill: '#059669', strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="hardness" name="Tvrdosť (°dH)" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="conductivity" name="Vodivosť (mS/cm)" stroke="#ec4899" strokeWidth={2} strokeDasharray="3 3" dot={{ r: 2, fill: '#ec4899', strokeWidth: 0 }} />
+              </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
