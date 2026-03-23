@@ -41,8 +41,7 @@ export const CustomerModal = ({
     serialNumber: '',
     installDate: new Date().toISOString().split('T')[0],
     notes: '',
-    photos: {},
-    useAsInstallDate: false
+    photos: {}
   });
 
   useEffect(() => {
@@ -69,8 +68,7 @@ export const CustomerModal = ({
           serialNumber: '',
           installDate: new Date().toISOString().split('T')[0],
           notes: '',
-          photos: {},
-          useAsInstallDate: false
+          photos: {}
         });
       }
       setDuplicateError(null);
@@ -96,27 +94,17 @@ export const CustomerModal = ({
       return;
     }
 
-    // Serial number duplicate check
-    if (!editingCustomer && addBoiler && newBoiler.serialNumber) {
-      const existingBoiler = boilers.find(b => b.serialNumber === newBoiler.serialNumber);
-      if (existingBoiler) {
-        const confirmSave = window.confirm('Zariadenie s týmto sériovým číslom už existuje. Chcete ho napriek tomu uložiť?');
-        if (!confirmSave) return;
-      }
-    }
-
     if (editingCustomer) {
       onUpdate(editingCustomer.id, newCustomer);
     } else {
       onAdd(newCustomer, addBoiler ? newBoiler : undefined);
     }
-    onClose(); // Close modal after successful submit
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
+    <div ref={modalRef} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
       <motion.div 
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -129,12 +117,7 @@ export const CustomerModal = ({
           {editingCustomer && (
             <button 
               type="button"
-              onClick={() => {
-                if (window.confirm('Naozaj chcete vymazať tohto zákazníka?')) {
-                  onDelete(editingCustomer.id);
-                  onClose();
-                }
-              }}
+              onClick={() => onDelete(editingCustomer.id)}
               className="p-2 text-white hover:bg-red-500 rounded-xl transition-all"
               title="Vymazať zákazníka"
             >

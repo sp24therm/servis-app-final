@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Plus, Phone, Mail, User, ChevronRight, Edit2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Plus, Phone, Info, MapPin, PenTool } from 'lucide-react';
 import { Contact } from '../types';
 
 interface ContactsListProps {
@@ -9,105 +9,90 @@ interface ContactsListProps {
 }
 
 export const ContactsList = ({ 
-  contacts, 
+  contacts,
   onAddContact,
   onEditContact
 }: ContactsListProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [search, setSearch] = useState('');
 
-  const filteredContacts = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return contacts;
-
-    return contacts.filter(c => {
-      const nameMatch = (c.name || '').toLowerCase().includes(query);
-      const companyMatch = (c.company || '').toLowerCase().includes(query);
-      const phoneMatch = (c.phone || '').includes(query);
-      const emailMatch = (c.email || '').toLowerCase().includes(query);
-
-      return nameMatch || companyMatch || phoneMatch || emailMatch;
-    });
-  }, [contacts, searchQuery]);
+  const filteredContacts = contacts.filter(c => 
+    (c.name || '').toLowerCase().includes(search.toLowerCase()) || 
+    (c.specialization || '').toLowerCase().includes(search.toLowerCase()) ||
+    (c.phone || '').includes(search) ||
+    (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <header className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-white">Kontakty</h1>
-        <button onClick={onAddContact} className="btn-primary w-full sm:w-auto justify-center">
-          <Plus size={20} /> Pridať kontakt
+        <button onClick={onAddContact} className="btn-primary">
+          <Plus size={20} />
+          <span>Nový kontakt</span>
         </button>
-      </div>
+      </header>
 
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={20} />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={20} />
         <input 
           type="text" 
-          placeholder="Hľadať podľa mena, firmy, telefónu alebo emailu..." 
-          className="input-field pl-12 py-4 text-lg"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Hľadať v kontaktoch..." 
+          className="input-field pl-12"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {filteredContacts.length > 0 ? (
-          filteredContacts.map(contact => (
-            <div 
-              key={contact.id} 
-              className="card p-6 space-y-4 hover:border-[#3A87AD]/30 transition-all group relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-[#3A87AD]/5 rounded-full -mr-12 -mt-12 blur-2xl group-hover:bg-[#3A87AD]/10 transition-all" />
-              
-              <div className="flex justify-between items-start relative z-10">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white/5 text-[#3A87AD] rounded-2xl flex items-center justify-center font-bold text-xl">
-                    {contact.name.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white text-lg group-hover:text-[#3A87AD] transition-colors">{contact.name}</h3>
-                    {contact.company && <p className="text-xs font-bold text-[#3A87AD] uppercase tracking-widest">{contact.company}</p>}
-                  </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredContacts.map(contact => (
+          <div 
+            key={contact.id} 
+            className="card p-5 space-y-4 hover:border-[#3A87AD]/30 transition-all group"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#3A87AD]/10 text-[#3A87AD] rounded-xl flex items-center justify-center font-bold">
+                  {contact.name.charAt(0)}
                 </div>
-                <button 
-                  onClick={() => onEditContact(contact)}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"
-                >
-                  <Edit2 size={16} />
-                </button>
+                <div>
+                  <h3 className="font-bold text-white">{contact.name}</h3>
+                  <p className="text-xs text-[#3A87AD] font-medium uppercase tracking-wider">{contact.specialization}</p>
+                </div>
               </div>
+              <button 
+                onClick={() => onEditContact(contact)}
+                className="p-2 text-white/20 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
+              >
+                <PenTool size={16} />
+              </button>
+            </div>
 
-              <div className="space-y-3 pt-2 relative z-10">
-                <a href={`tel:${contact.phone}`} className="flex items-center gap-3 text-white/60 hover:text-white transition-colors">
-                  <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
-                    <Phone size={14} />
-                  </div>
-                  <span className="text-sm font-medium">{contact.phone}</span>
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <a href={`tel:${contact.phone}`} className="flex items-center gap-3 text-sm text-white/60 hover:text-[#3A87AD] transition-colors">
+                <Phone size={16} className="text-white/20" />
+                {contact.phone}
+              </a>
+              {contact.email && (
+                <a href={`mailto:${contact.email}`} className="flex items-center gap-3 text-sm text-white/60 hover:text-[#3A87AD] transition-colors">
+                  <Info size={16} className="text-white/20" />
+                  {contact.email}
                 </a>
-                {contact.email && (
-                  <a href={`mailto:${contact.email}`} className="flex items-center gap-3 text-white/60 hover:text-white transition-colors">
-                    <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
-                      <Mail size={14} />
-                    </div>
-                    <span className="text-sm font-medium">{contact.email}</span>
-                  </a>
-                )}
-              </div>
-
-              {contact.notes && (
-                <div className="p-3 bg-white/5 rounded-xl border border-white/5 relative z-10">
-                  <p className="text-xs text-white/40 leading-relaxed line-clamp-2">{contact.notes}</p>
+              )}
+              {contact.address && (
+                <div className="flex items-start gap-3 text-sm text-white/60">
+                  <MapPin size={16} className="text-white/20 mt-0.5" />
+                  <span>{contact.address}</span>
                 </div>
               )}
             </div>
-          ))
-        ) : (
-          <div className="card p-12 text-center space-y-4 bg-white/5 border-dashed col-span-full">
-            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto text-white/20">
-              <User size={32} />
-            </div>
-            <p className="text-white/40 font-medium">Nenašli sa žiadne kontakty</p>
+
+            {contact.notes && (
+              <div className="bg-white/5 rounded-lg p-3 text-xs text-white/40 italic">
+                {contact.notes}
+              </div>
+            )}
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

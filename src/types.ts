@@ -9,9 +9,9 @@ export interface ServiceRecord {
   boilerId: string;
   date: string;
   taskPerformed: string;
-  co2Value: number;
-  coValue?: number; // CO value in ppm
-  pressureValue: number;
+  co2Value: number | string;
+  coValue?: number | string; // CO value in ppm
+  pressureValue: number | string;
   status: ServiceStatus;
   technicianNotes?: string;
   signature?: string; // Base64 or URL
@@ -19,18 +19,18 @@ export interface ServiceRecord {
   photo?: string; // Base64 or URL
 
   // Detailed "Ročný servis" fields
-  co2Max?: number;
-  co2Min?: number;
-  o2Max?: number;
-  o2Min?: number;
-  efficiency?: number;
-  gasPressure?: number;
-  expansionTankPressureCH?: number;
+  co2Max?: number | string;
+  co2Min?: number | string;
+  o2Max?: number | string;
+  o2Min?: number | string;
+  efficiency?: number | string;
+  gasPressure?: number | string;
+  expansionTankPressureCH?: number | string;
   hasDHWExpansionTank?: boolean;
-  expansionTankPressureDHW?: number;
-  conductivity?: number;
-  phCH?: number;
-  hardnessCH?: number;
+  expansionTankPressureDHW?: number | string;
+  conductivity?: number | string;
+  phCH?: number | string;
+  hardnessCH?: number | string;
   burnerCheck?: boolean;
   combustionChamberCleaning?: boolean;
   electrodesCheck?: boolean;

@@ -1,238 +1,357 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Phone, 
-  Mail, 
   MapPin, 
-  Calendar, 
   Wrench, 
-  ChevronRight, 
   Plus, 
   History, 
-  AlertCircle, 
-  CheckCircle2, 
-  Clock, 
-  Trash2, 
-  Edit2,
-  Camera,
-  FileText,
-  User
+  Info,
+  Map as MapIcon,
+  PenTool,
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Users
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Customer, Boiler, ServiceRecord } from '../types';
+import { MeasurementHistory } from './MeasurementHistory';
+import { getBoilerStatus, getStatusColor, getStatusLabel } from '../utils/boilerUtils';
 
 interface CustomerDetailProps {
   customer: Customer;
   boilers: Boiler[];
   services: ServiceRecord[];
+  onBack: () => void;
+  onAddService: (boilerId: string) => void;
+  onAddBoiler: (customerId: string) => void;
+  onEditBoiler: (boilerId: string) => void;
   onEditCustomer: (customer: Customer) => void;
-  onAddBoiler: () => void;
-  onEditBoiler: (boiler: Boiler) => void;
-  onRecordService: (boilerId: string) => void;
-  onViewService: (service: ServiceRecord) => void;
-  onDeleteBoiler: (id: string) => void;
+  onSelectService: (serviceId: string) => void;
+  setSelectedBoilerId: (id: string) => void;
 }
 
 export const CustomerDetail = ({ 
   customer, 
   boilers, 
-  services,
-  onEditCustomer,
+  services, 
+  onBack,
+  onAddService,
   onAddBoiler,
   onEditBoiler,
-  onRecordService,
-  onViewService,
-  onDeleteBoiler
+  onEditCustomer,
+  onSelectService,
+  setSelectedBoilerId
 }: CustomerDetailProps) => {
+  const customerBoilers = boilers.filter(b => b.customerId === customer.id);
+  const [expandedBoilers, setExpandedBoilers] = useState<Record<string, boolean>>({});
+  const [showHistory, setShowHistory] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (boilerId: string) => {
+    setExpandedBoilers(prev => ({ ...prev, [boilerId]: !prev[boilerId] }));
+  };
+
+  const toggleHistory = (boilerId: string) => {
+    setShowHistory(prev => ({ ...prev, [boilerId]: !prev[boilerId] }));
+  };
+
+  const handleNavigate = (address: string) => {
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank');
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
-      {/* Customer Header */}
-      <div className="card p-6 space-y-6 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-[#3A87AD]/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-[#3A87AD]/20 transition-all duration-700" />
-        
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 relative z-10">
-          <div className="space-y-1">
-            <h2 className="text-3xl font-bold text-white tracking-tight">{customer.name}</h2>
-            {customer.company && <p className="text-[#3A87AD] font-bold text-sm uppercase tracking-widest">{customer.company}</p>}
-          </div>
-          <button 
-            onClick={() => onEditCustomer(customer)}
-            className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-white/60 hover:text-white transition-all border border-white/5"
-          >
-            <Edit2 size={20} />
-          </button>
-        </div>
+    <div className="space-y-6 animate-in slide-in-from-right duration-300">
+      <button onClick={onBack} className="btn-secondary mb-2">
+        <ArrowLeft size={20} />
+        Späť
+      </button>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t border-white/5">
-          <a href={`tel:${customer.phone}`} className="flex items-center gap-4 group/item">
-            <div className="w-10 h-10 bg-[#3A87AD]/10 rounded-xl flex items-center justify-center text-[#3A87AD] group-hover/item:bg-[#3A87AD] group-hover/item:text-white transition-all">
-              <Phone size={18} />
+      <div className="card p-6 bg-[#3A87AD] text-white border-none relative overflow-hidden">
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="flex items-center gap-3 group">
+              <h1 className="text-3xl font-bold">{customer.name}</h1>
+              <button 
+                onClick={() => onEditCustomer(customer)}
+                className="p-1.5 text-white/40 hover:text-white transition-colors rounded-lg"
+                title="Upraviť údaje"
+              >
+                <PenTool size={18} />
+              </button>
             </div>
-            <div className="space-y-0.5">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Telefón</p>
-              <p className="text-white font-medium">{customer.phone}</p>
-            </div>
-          </a>
-          {customer.email && (
-            <a href={`mailto:${customer.email}`} className="flex items-center gap-4 group/item">
-              <div className="w-10 h-10 bg-[#3A87AD]/10 rounded-xl flex items-center justify-center text-[#3A87AD] group-hover/item:bg-[#3A87AD] group-hover/item:text-white transition-all">
-                <Mail size={18} />
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Email</p>
-                <p className="text-white font-medium">{customer.email}</p>
-              </div>
-            </a>
-          )}
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-[#3A87AD]/10 rounded-xl flex items-center justify-center text-[#3A87AD]">
-              <Calendar size={18} />
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Zákazník od</p>
-              <p className="text-white font-medium">{new Date(customer.createdAt).toLocaleDateString('sk-SK')}</p>
+            {customer.company && <p className="text-white/80 font-medium">{customer.company}</p>}
+            <div className="mt-4 space-y-2">
+              <a href={`tel:${customer.phone}`} className="flex items-center gap-2 text-white/80 hover:text-white transition-colors">
+                <Phone size={18} />
+                {customer.phone}
+              </a>
+              {customer.email && (
+                <p className="flex items-center gap-2 text-white/80">
+                  <Info size={18} />
+                  {customer.email}
+                </p>
+              )}
             </div>
           </div>
+          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm shrink-0">
+            <Users size={32} />
+          </div>
         </div>
-
         {customer.notes && (
-          <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Poznámka</p>
-            <p className="text-sm text-white/70 leading-relaxed">{customer.notes}</p>
+          <div className="mt-4 p-3 bg-white/10 rounded-xl text-sm italic">
+            {customer.notes}
           </div>
         )}
       </div>
 
-      {/* Boilers Section */}
       <div className="space-y-4">
-        <div className="flex justify-between items-center px-2">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Wrench size={20} className="text-[#3A87AD]" /> Zariadenia
-          </h3>
-          <button 
-            onClick={onAddBoiler}
-            className="flex items-center gap-2 text-[#3A87AD] font-bold text-xs uppercase tracking-widest hover:underline"
-          >
-            <Plus size={16} /> Pridať zariadenie
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold text-white">Zariadenia</h2>
+          <button onClick={() => onAddBoiler(customer.id)} className="text-[#3A87AD] font-medium flex items-center gap-1 hover:underline">
+            <Plus size={18} /> Pridať zariadenie
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {boilers.map((boiler) => {
-            const boilerServices = services
-              .filter(s => s.boilerId === boiler.id)
-              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            
-            const lastService = boilerServices[0];
-            const nextDate = boiler.nextServiceDate ? new Date(boiler.nextServiceDate) : null;
-            const isOverdue = nextDate ? nextDate < new Date() : false;
-            const isUpcoming = nextDate ? (nextDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24) <= 30 : false;
+        {customerBoilers.map(boiler => {
+          const boilerServices = services.filter(s => s.boilerId === boiler.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const status = getBoilerStatus(boiler.nextServiceDate);
+          const statusColor = getStatusColor(status);
+          
+          const isExpanded = expandedBoilers[boiler.id];
+          const visibleServices = isExpanded ? boilerServices : boilerServices.slice(0, 3);
 
-            return (
-              <div key={boiler.id} className="card p-6 space-y-6 hover:border-[#3A87AD]/30 transition-all group">
+          return (
+            <div key={boiler.id} className="card p-0 overflow-hidden">
+              <div className="p-4">
                 <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <h4 className="text-xl font-bold text-white group-hover:text-[#3A87AD] transition-colors">{boiler.brand} {boiler.model}</h4>
-                    <p className="text-sm text-white/60 flex items-center gap-2">
-                      <MapPin size={14} /> {boiler.address}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-white">{boiler.name}</h3>
+                      <button 
+                        onClick={() => handleNavigate(boiler.address)}
+                        className="p-1.5 bg-[#3A87AD]/10 text-[#3A87AD] rounded-lg hover:bg-[#3A87AD] hover:text-white transition-colors"
+                        title="Navigovať"
+                      >
+                        <MapPin size={14} />
+                      </button>
+                      <button 
+                        onClick={() => setSelectedBoilerId(boiler.id)}
+                        className="p-1.5 bg-white/5 text-white/40 rounded-lg hover:bg-white/10 hover:text-[#3A87AD] transition-colors"
+                        title="Detail zariadenia"
+                      >
+                        <Info size={14} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-[#3A87AD] font-medium mt-0.5">
+                      {boiler.address}
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => onEditBoiler(boiler)}
-                      className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button 
-                      onClick={() => {
-                        if (window.confirm('Naozaj chcete vymazať toto zariadenie?')) {
-                          onDeleteBoiler(boiler.id);
-                        }
-                      }}
-                      className="p-2 bg-white/5 hover:bg-red-500/20 rounded-xl text-white/40 hover:text-[#C14F4F] transition-all"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                  <div 
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ backgroundColor: `${statusColor}20`, color: statusColor }}
+                  >
+                    {getStatusLabel(status)}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 mt-4 p-3 bg-white/5 rounded-2xl border border-white/5">
+                  <div>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Posledný</p>
+                    <p className="text-sm font-bold text-white">{boiler.lastServiceDate ? new Date(boiler.lastServiceDate).toLocaleDateString('sk-SK') : '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Nasledujúci</p>
+                    <p className="text-sm font-black" style={{ color: statusColor }}>
+                      {boiler.nextServiceDate ? new Date(boiler.nextServiceDate).toLocaleDateString('sk-SK') : '-'}
+                    </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className={`p-4 rounded-2xl border ${
-                    isOverdue ? 'bg-[#C14F4F]/10 border-[#C14F4F]/20' : 
-                    isUpcoming ? 'bg-[#C1A44F]/10 border-[#C1A44F]/20' : 
-                    'bg-emerald-500/10 border-emerald-500/20'
-                  }`}>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Nasledujúci servis</p>
-                    <div className="flex items-center gap-2">
-                      {isOverdue ? <AlertCircle size={16} className="text-[#C14F4F]" /> : 
-                       isUpcoming ? <Clock size={16} className="text-[#C1A44F]" /> : 
-                       <CheckCircle2 size={16} className="text-emerald-500" />}
-                      <span className={`font-bold ${
-                        isOverdue ? 'text-[#C14F4F]' : 
-                        isUpcoming ? 'text-[#C1A44F]' : 
-                        'text-emerald-500'
-                      }`}>
-                        {boiler.nextServiceDate ? new Date(boiler.nextServiceDate).toLocaleDateString('sk-SK') : 'Neuvedené'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Sériové číslo</p>
-                    <p className="text-white font-bold">{boiler.serialNumber || 'Neuvedené'}</p>
-                  </div>
-                </div>
-
-                {boiler.photos && Object.keys(boiler.photos).length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    {Object.entries(boiler.photos).map(([type, url]: [string, any]) => (
-                      <div key={type} className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-white/10">
-                        <img src={url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h5 className="text-xs font-bold text-white/40 uppercase tracking-widest flex items-center gap-2">
-                      <History size={14} /> História zásahov
-                    </h5>
-                    <button 
-                      onClick={() => onRecordService(boiler.id)}
-                      className="btn-primary py-1.5 px-4 text-xs"
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
                     >
-                      <Wrench size={14} /> Zaznamenať úkon
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {boilerServices.length > 0 ? (
-                      boilerServices.slice(0, 3).map((service) => (
-                        <button
-                          key={service.id}
-                          onClick={() => onViewService(service)}
-                          className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all group/service"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center text-white/40 group-hover/service:text-[#3A87AD] transition-colors">
-                              <FileText size={16} />
-                            </div>
-                            <div className="text-left">
-                              <p className="text-sm font-bold text-white/80">{service.taskPerformed}</p>
-                              <p className="text-[10px] text-white/40">{new Date(service.date).toLocaleDateString('sk-SK')}</p>
-                            </div>
+                      <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Značka / Model</p>
+                            <p className="text-xs font-medium text-white/80">{boiler.brand} {boiler.model}</p>
                           </div>
-                          <ChevronRight size={16} className="text-white/20 group-hover/service:text-white transition-all" />
-                        </button>
-                      ))
-                    ) : (
-                      <p className="text-center py-4 text-sm text-white/20 italic">Žiadne záznamy</p>
-                    )}
-                  </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Sériové číslo</p>
+                            <p className="text-xs font-medium text-white/80">{boiler.serialNumber}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Dátum montáže</p>
+                            <p className="text-xs font-medium text-white/80">{new Date(boiler.installDate).toLocaleDateString('sk-SK')}</p>
+                          </div>
+                          <div className="flex items-end justify-end">
+                            <button 
+                              onClick={() => onEditBoiler(boiler.id)}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-white/5 text-white/60 rounded-xl text-xs font-bold hover:bg-white/10 hover:text-white transition-colors"
+                            >
+                              <PenTool size={14} />
+                              Upraviť údaje
+                            </button>
+                          </div>
+                        </div>
+                        {boiler.notes && (
+                          <div className="p-3 bg-amber-500/10 rounded-xl text-xs text-amber-500 border border-amber-500/20">
+                            <p className="font-bold uppercase text-[9px] mb-1 opacity-60 tracking-widest">Poznámka k zariadeniu</p>
+                            {boiler.notes}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="mt-4 flex gap-2">
+                  <button 
+                    onClick={() => onAddService(boiler.id)}
+                    className="btn-primary flex-1 justify-center py-2.5 text-sm shadow-md shadow-[#3A87AD]/20"
+                  >
+                    <Wrench size={16} />
+                    Vykonať servis
+                  </button>
+                  <button 
+                    onClick={() => toggleExpand(boiler.id)}
+                    className={`p-2.5 rounded-xl border transition-all ${
+                      isExpanded ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-white/10 text-white/40 hover:border-[#3A87AD]/50 hover:text-[#3A87AD]'
+                    }`}
+                  >
+                    <Info size={20} />
+                  </button>
                 </div>
               </div>
-            );
-          })}
+
+              <div className="bg-white/5 p-4 border-t border-white/5">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-xs font-bold text-white/40 uppercase flex items-center gap-2">
+                    <History size={14} /> História servisov
+                    <span className="bg-white/10 text-white/60 px-1.5 py-0.5 rounded-md text-[10px]">
+                      {boilerServices.length}
+                    </span>
+                  </h4>
+                  <button 
+                    onClick={() => toggleHistory(boiler.id)}
+                    className="text-[10px] font-bold text-[#3A87AD] hover:bg-[#3A87AD]/10 px-2 py-1 rounded-md transition-colors flex items-center gap-1"
+                  >
+                    {showHistory[boiler.id] ? (
+                      <>Skryť grafy <ChevronUp size={12} /></>
+                    ) : (
+                      <>História meraní <ChevronDown size={12} /></>
+                    )}
+                  </button>
+                </div>
+                
+                <AnimatePresence>
+                  {showHistory[boiler.id] && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="mb-6 overflow-hidden"
+                    >
+                      <MeasurementHistory services={boilerServices} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                
+                <div className="space-y-2">
+                  {visibleServices.length > 0 ? (
+                    <>
+                      {visibleServices.map((service, index) => {
+                        let isTimely = true;
+                        const nextService = boilerServices[index + 1];
+                        if (nextService) {
+                          const currDate = new Date(service.date);
+                          const prevDate = new Date(nextService.date);
+                          const diffMonths = (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+                          isTimely = diffMonths <= 13;
+                        }
+
+                        return (
+                          <div 
+                            key={service.id} 
+                            onClick={() => onSelectService(service.id)}
+                            className="bg-white/5 p-2.5 rounded-lg border border-white/5 shadow-sm hover:border-[#3A87AD]/50 hover:bg-white/10 cursor-pointer transition-all"
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-white/80">{new Date(service.date).toLocaleDateString('sk-SK')}</span>
+                                <Wrench 
+                                  size={12} 
+                                  className={isTimely ? 'text-emerald-400' : 'text-[#C14F4F]'} 
+                                />
+                              </div>
+                              <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-bold uppercase">
+                                {service.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-white/60 line-clamp-1">{service.taskPerformed}</p>
+                          </div>
+                        );
+                      })}
+                      
+                      {boilerServices.length > 3 && (
+                        <button 
+                          onClick={() => toggleExpand(boiler.id)}
+                          className="w-full py-1.5 text-[11px] font-bold text-[#3A87AD] hover:bg-[#3A87AD]/10 rounded-lg transition-colors flex items-center justify-center gap-1"
+                        >
+                          {isExpanded ? (
+                            <>Zobraziť menej</>
+                          ) : (
+                            <>Zobraziť všetky ({boilerServices.length})</>
+                          )}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-white/40 italic">Žiadna história záznamov.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Customer Map */}
+      <div className="card p-0 overflow-hidden min-h-[300px] mt-8">
+        <div className="p-4 border-b border-white/5">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <MapIcon size={20} className="text-[#3A87AD]" />
+            Mapa zariadení zákazníka
+          </h2>
+        </div>
+        <div className="h-[300px] w-full relative z-0">
+          <MapContainer 
+            center={customerBoilers.length > 0 && customerBoilers[0].lat ? [customerBoilers[0].lat, customerBoilers[0].lng!] : [48.6690, 19.6990]} 
+            zoom={customerBoilers.length > 0 ? 12 : 7} 
+            style={{ height: '100%', width: '100%' }}
+            className="dark-map"
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
+            {customerBoilers.filter(b => b.lat && b.lng).map(boiler => (
+              <Marker key={boiler.id} position={[boiler.lat!, boiler.lng!]}>
+                <Popup>
+                  <div className="p-1">
+                    <p className="font-bold text-slate-900 mb-1">{boiler.name}</p>
+                    <p className="text-xs text-slate-500">{boiler.address}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
         </div>
       </div>
     </div>

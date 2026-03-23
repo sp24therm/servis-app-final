@@ -1,193 +1,206 @@
-import React from 'react';
-import { X, Trash2, Calendar, Wrench, FileText, CheckCircle2, Camera, TrendingUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trash2, Download, ArrowLeft, CheckCircle2, AlertCircle, PenTool } from 'lucide-react';
 import { motion } from 'motion/react';
-import { ServiceRecord, Boiler } from '../types';
+import { ServiceRecord, Boiler, Customer } from '../types';
+import { generateServicePDF } from '../utils/pdf';
 
 interface ServiceDetailModalProps {
-  isOpen: boolean;
+  service: ServiceRecord;
+  boiler: Boiler;
+  customer: Customer;
   onClose: () => void;
-  service: ServiceRecord | null;
-  boiler: Boiler | null;
+  onEdit: () => void;
   onDelete: (id: string) => void;
 }
 
 export const ServiceDetailModal = ({ 
-  isOpen, 
-  onClose, 
   service, 
-  boiler,
+  boiler, 
+  customer,
+  onClose,
+  onEdit,
   onDelete
 }: ServiceDetailModalProps) => {
-  if (!isOpen || !service || !boiler) return null;
+  if (!service) return null;
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    setIsGenerating(true);
+    try {
+      await generateServicePDF(service, boiler, customer);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto pt-10 pb-10">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
       <motion.div 
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="card w-full max-w-3xl p-0 overflow-hidden shadow-2xl"
+        className="card w-full max-w-2xl p-0 overflow-hidden"
       >
-        {/* Header */}
-        <div className="bg-[#3A87AD] p-6 flex justify-between items-center text-white relative">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-              <Wrench size={24} />
-            </div>
+        <div className="bg-[#3A87AD] p-6 text-white">
+          <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-bold">{service.taskPerformed}</h2>
-              <p className="text-white/70 text-sm flex items-center gap-2">
-                <Calendar size={14} /> {new Date(service.date).toLocaleDateString('sk-SK')}
+              <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">Detail zásahu</p>
+              <h2 className="text-2xl font-bold">{service.taskPerformed}</h2>
+              <p className="text-white/80 text-sm mt-1">
+                {new Date(service.date).toLocaleDateString('sk-SK')} • {boiler.brand} {boiler.model}
               </p>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => {
-                if (window.confirm('Naozaj chcete vymazať tento záznam?')) {
-                  onDelete(service.id);
-                  onClose();
-                }
-              }}
-              className="p-2 text-white hover:bg-red-500 rounded-xl transition-all"
-              title="Vymazať záznam"
-            >
-              <Trash2 size={22} />
-            </button>
-            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all">
-              <X size={24} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => onDelete(service.id)} 
+                className="p-2 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-xl transition-colors"
+                title="Vymazať záznam"
+              >
+                <Trash2 size={18} />
+              </button>
+              <button 
+                onClick={handleDownloadPDF} 
+                disabled={isGenerating}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors flex items-center gap-2 text-xs font-bold"
+                title="Stiahnuť PDF"
+              >
+                {isGenerating ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Download size={18} />
+                )}
+                PDF
+              </button>
+              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                <ArrowLeft size={24} />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="p-6 space-y-8 max-h-[70vh] overflow-y-auto">
-          {/* Boiler Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-3 gap-6">
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Zariadenie</p>
-              <p className="text-lg font-bold text-white">{boiler.brand} {boiler.model}</p>
-              <p className="text-sm text-white/60">{boiler.address}</p>
+              <p className="text-[10px] font-bold text-white/40 uppercase">CO2 Hodnota</p>
+              <p className="text-lg font-bold text-white">{service.co2Value}%</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Sériové číslo</p>
-              <p className="text-lg font-bold text-white">{boiler.serialNumber || 'Neuvedené'}</p>
+              <p className="text-[10px] font-bold text-white/40 uppercase">CO</p>
+              <p className="text-lg font-bold text-white">{service.coValue} ppm</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold text-white/40 uppercase">Tlak</p>
+              <p className="text-lg font-bold text-white">{service.pressureValue} bar</p>
             </div>
           </div>
 
-          {/* Combustion Analysis */}
-          {(service.co2Value > 0 || service.pressureValue > 0) && (
-            <div className="space-y-4">
-              <h3 className="font-bold text-[#3A87AD] flex items-center gap-2 border-b border-white/5 pb-2">
-                <TrendingUp size={18} /> Analýza spalín
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="card p-3 bg-white/5 border-white/10 text-center">
-                  <p className="text-[10px] font-bold text-white/40 uppercase">CO2</p>
-                  <p className="text-xl font-bold text-white">{service.co2Value}%</p>
-                </div>
-                <div className="card p-3 bg-white/5 border-white/10 text-center">
-                  <p className="text-[10px] font-bold text-white/40 uppercase">CO</p>
-                  <p className="text-xl font-bold text-white">{service.coValue || 0} ppm</p>
-                </div>
-                <div className="card p-3 bg-white/5 border-white/10 text-center">
-                  <p className="text-[10px] font-bold text-white/40 uppercase">Tlak</p>
-                  <p className="text-xl font-bold text-white">{service.pressureValue} bar</p>
-                </div>
-                <div className="card p-3 bg-white/5 border-white/10 text-center">
-                  <p className="text-[10px] font-bold text-white/40 uppercase">Účinnosť</p>
-                  <p className="text-xl font-bold text-white">{service.efficiency || 0}%</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Checklist */}
-          <div className="space-y-4">
-            <h3 className="font-bold text-[#3A87AD] flex items-center gap-2 border-b border-white/5 pb-2">
-              <CheckCircle2 size={18} /> Vykonané kontroly
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-              {[
-                { id: 'burnerCheck', label: 'Kontrola horáka' },
-                { id: 'combustionChamberCleaning', label: 'Čistenie spaľovacej komory' },
-                { id: 'electrodesCheck', label: 'Kontrola elektród' },
-                { id: 'exchangerCheck', label: 'Kontrola výmenníka' },
-                { id: 'fanCheck', label: 'Kontrola ventilátora' },
-                { id: 'filtersCleaning', label: 'Čistenie filtrov' },
-                { id: 'siphonCleaning', label: 'Čistenie sifónu' },
-                { id: 'gasCircuitTightness', label: 'Tesnosť plynového okruhu' },
-                { id: 'flueGasOutletTightness', label: 'Tesnosť odvodu spalín' },
-                { id: 'pumpCheck', label: 'Kontrola čerpadla' },
-                { id: 'threeWayValveCheck', label: 'Kontrola 3-cestného ventilu' },
-                { id: 'airSupplyVentilation', label: 'Prívod vzduchu a vetranie' },
-                { id: 'emergencyStatesCheck', label: 'Kontrola havarijných stavov' },
-                { id: 'bondingProtection', label: 'Ochranné pospojovanie' },
-              ].map(item => (
-                <div key={item.id} className="flex items-center justify-between py-1">
-                  <span className="text-sm text-white/60">{item.label}</span>
-                  {/* @ts-ignore */}
-                  {service[item.id] === true ? (
-                    <span className="text-emerald-500 text-xs font-bold uppercase tracking-widest">OK</span>
-                  // @ts-ignore
-                  ) : service[item.id] === false ? (
-                    <span className="text-[#C14F4F] text-xs font-bold uppercase tracking-widest">CHYBA</span>
-                  ) : (
-                    <span className="text-white/20 text-xs font-bold uppercase tracking-widest">—</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Photos */}
-          {(service.photoBefore || service.photoAfter || service.photoBoiler || service.photoConnection || service.photoChimney) && (
-            <div className="space-y-4">
-              <h3 className="font-bold text-[#3A87AD] flex items-center gap-2 border-b border-white/5 pb-2">
-                <Camera size={18} /> Fotodokumentácia
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {[
-                  { id: 'photoBefore', label: 'Foto pred' },
-                  { id: 'photoAfter', label: 'Foto po' },
-                  { id: 'photoBoiler', label: 'Celok' },
-                  { id: 'photoConnection', label: 'Napojenie' },
-                  { id: 'photoChimney', label: 'Komín' }
-                ].map(type => (
-                  // @ts-ignore
-                  service[type.id] && (
-                    <div key={type.id} className="space-y-2">
-                      <p className="text-[10px] font-bold text-white/40 uppercase text-center">{type.label}</p>
-                      <div className="aspect-square rounded-2xl overflow-hidden border border-white/10">
-                        {/* @ts-ignore */}
-                        <img src={service[type.id]} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </div>
+          {service.taskPerformed === 'Ročná prehliadka' && (
+            <div className="space-y-6 animate-in fade-in duration-500">
+              <div className="bg-white/5 p-4 rounded-2xl space-y-4 border border-white/5">
+                <h3 className="text-xs font-bold text-white/40 uppercase tracking-wider">Analýza spalín a tlaky</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    { label: 'CO2 Max', val: service.co2Max, unit: '%' },
+                    { label: 'CO2 Min', val: service.co2Min, unit: '%' },
+                    { label: 'CO', val: service.coValue, unit: ' ppm' },
+                    { label: 'O2 Max', val: service.o2Max, unit: '%' },
+                    { label: 'O2 Min', val: service.o2Min, unit: '%' },
+                    { label: 'Účinnosť', val: service.efficiency, unit: '%' },
+                    { label: 'Tlak plynu', val: service.gasPressure, unit: ' mbar' },
+                    { label: 'Tlak exp. ÚK', val: service.expansionTankPressureCH, unit: ' bar' },
+                    { label: 'Tlak exp. TÚV', val: service.expansionTankPressureDHW, unit: ' bar', show: service.hasDHWExpansionTank },
+                  ].map(item => (item.show !== false && (
+                    <div key={item.label}>
+                      <p className="text-[10px] font-bold text-white/40 uppercase">{item.label}</p>
+                      <p className="text-sm font-bold text-white">{item.val ?? '-'}{item.unit}</p>
                     </div>
-                  )
-                ))}
+                  )))}
+                </div>
+              </div>
+
+              <div className="bg-white/5 p-4 rounded-2xl space-y-4 border border-white/5">
+                <h3 className="text-xs font-bold text-white/40 uppercase tracking-wider">Chemické hodnoty ÚK</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { label: 'Konduktivita', val: service.conductivity, unit: ' mS/cm' },
+                    { label: 'PH ÚK', val: service.phCH, unit: '' },
+                    { label: 'Tvrdosť ÚK', val: service.hardnessCH, unit: ' °dH' },
+                  ].map(item => (
+                    <div key={item.label}>
+                      <p className="text-[10px] font-bold text-white/40 uppercase">{item.label}</p>
+                      <p className="text-sm font-bold text-white">{item.val ?? '-'}{item.unit}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white/5 p-4 rounded-2xl space-y-4 border border-white/5">
+                <h3 className="text-xs font-bold text-white/40 uppercase tracking-wider">Kontrolný zoznam</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                  {[
+                    { key: 'burnerCheck', label: 'Kontrola horáka' },
+                    { key: 'combustionChamberCleaning', label: 'Čistenie spaľovacej komory' },
+                    { key: 'electrodesCheck', label: 'Kontrola elektród' },
+                    { key: 'exchangerCheck', label: 'Kontrola výmenníka' },
+                    { key: 'fanCheck', label: 'Kontrola ventilátora' },
+                    { key: 'filtersCleaning', label: 'Čistenie filtrov' },
+                    { key: 'siphonCleaning', label: 'Čistenie sifónu' },
+                    { key: 'gasCircuitTightness', label: 'Tesnosť plynového okruhu' },
+                    { key: 'flueGasOutletTightness', label: 'Tesnosť odvodu spalín' },
+                    { key: 'pumpCheck', label: 'Kontrola čerpadla' },
+                    { key: 'threeWayValveCheck', label: 'Kontrola 3-cestného ventilu' },
+                    { key: 'airSupplyVentilation', label: 'Prívod vzduchu a vetranie' },
+                    { key: 'emergencyStatesCheck', label: 'Kontrola havarijných stavov' },
+                    { key: 'bondingProtection', label: 'Ochrana pospojovaním' },
+                  ].map(item => (
+                    <div key={item.key} className="flex items-center justify-between">
+                      <span className="text-xs text-white/60">{item.label}</span>
+                      {service[item.key as keyof ServiceRecord] ? (
+                        <CheckCircle2 size={14} className="text-emerald-500" />
+                      ) : (
+                        <AlertCircle size={14} className="text-[#C14F4F]" />
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          {/* Notes */}
           {service.technicianNotes && (
             <div className="space-y-2">
-              <h3 className="font-bold text-[#3A87AD] flex items-center gap-2 border-b border-white/5 pb-2">
-                <FileText size={18} /> Poznámky technika
-              </h3>
-              <p className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap bg-white/5 p-4 rounded-2xl border border-white/10">
+              <p className="text-[10px] font-bold text-white/40 uppercase">Poznámky technika</p>
+              <div className="p-4 bg-white/5 rounded-2xl text-white/60 text-sm italic border border-white/5">
                 {service.technicianNotes}
-              </p>
-            </div>
-          )}
-
-          {/* Signature */}
-          {service.customerSignature && (
-            <div className="space-y-2 pt-4 border-t border-white/5">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Podpis zákazníka</p>
-              <div className="bg-white rounded-2xl p-4 w-full max-w-[300px]">
-                <img src={service.customerSignature} alt="Podpis" className="w-full h-auto" referrerPolicy="no-referrer" />
               </div>
             </div>
           )}
+
+          {service.photo && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-white/40 uppercase">Fotodokumentácia</p>
+              <div className="aspect-video rounded-2xl overflow-hidden border border-white/10">
+                <img src={service.photo} alt="Service" className="w-full h-full object-cover" />
+              </div>
+            </div>
+          )}
+
+          {service.signature && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-white/40 uppercase">Podpis zákazníka</p>
+              <div className="aspect-video bg-white p-4 rounded-2xl border border-white/10 flex items-center justify-center">
+                <img src={service.signature} alt="Signature" className="max-w-full max-h-full object-contain mix-blend-multiply" />
+              </div>
+            </div>
+          )}
+
+          <div className="pt-6 border-t border-white/5 flex gap-3">
+            <button onClick={onClose} className="btn-secondary flex-1 justify-center">Zavrieť</button>
+            <button onClick={onEdit} className="btn-primary flex-1 justify-center bg-amber-500 hover:bg-amber-600 border-amber-500 shadow-amber-500/20">
+              <PenTool size={18} /> Upraviť záznam
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>

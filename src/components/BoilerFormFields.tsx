@@ -1,24 +1,22 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Wrench, Camera, Scan, Trash2 } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { Wrench, Camera, Scan } from 'lucide-react';
 import { Boiler } from '../types';
-import { AddressSearch } from './Common';
+import { AddressSearch } from './AddressSearch';
 import Tesseract from 'tesseract.js';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
-
-interface BoilerFormFieldsProps {
-  boilerData: any;
-  setBoilerData: any;
-  existingBoilers: Boiler[];
-  setIsScannerOpen: (v: boolean) => void;
-}
 
 export const BoilerFormFields = ({ 
   boilerData, 
   setBoilerData, 
   existingBoilers,
   setIsScannerOpen
-}: BoilerFormFieldsProps) => {
+}: { 
+  boilerData: any, 
+  setBoilerData: any, 
+  existingBoilers: Boiler[],
+  setIsScannerOpen: (v: boolean) => void
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activePhotoType, setActivePhotoType] = useState<string | null>(null);
 
@@ -124,7 +122,6 @@ export const BoilerFormFields = ({
             className="input-field" 
             value={boilerData.name}
             onChange={e => setBoilerData({...boilerData, name: e.target.value})}
-            placeholder="Napr. Hlavný kotol"
           />
         </div>
         <div className="space-y-1">
@@ -196,19 +193,6 @@ export const BoilerFormFields = ({
             onChange={e => setBoilerData({...boilerData, installDate: e.target.value})}
           />
         </div>
-      </div>
-
-      <div className="flex items-center gap-2 py-2">
-        <input 
-          type="checkbox" 
-          id="useAsInstallDate" 
-          checked={boilerData.useAsInstallDate || false} 
-          onChange={e => setBoilerData({...boilerData, useAsInstallDate: e.target.checked})}
-          className="w-4 h-4 text-[#3A87AD] rounded bg-black/40 border-white/10"
-        />
-        <label htmlFor="useAsInstallDate" className="text-sm font-bold text-white/70 cursor-pointer">
-          Použiť ako dátum montáže (prepočíta nasledujúci servis)
-        </label>
       </div>
 
       <div className="grid grid-cols-3 gap-2">

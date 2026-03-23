@@ -1,90 +1,104 @@
-import React from 'react';
-import { Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import React, { useState } from 'react';
+import { X, Save, MapPin, Loader2 } from 'lucide-react';
 import { Boiler } from '../types';
+import { AddressSearch } from './AddressSearch';
 import { BoilerFormFields } from './BoilerFormFields';
 
 interface BoilerModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAdd: (boiler: Omit<Boiler, 'id' | 'customerId'>) => void;
-  onDelete: (id: string) => void;
-  editingBoilerId: string | null;
-  newBoilerData: any;
-  setNewBoilerData: any;
+  boiler?: Boiler;
+  onSave: (boiler: Partial<Boiler>) => Promise<void>;
+  onCancel: () => void;
+  customerId?: string;
   existingBoilers: Boiler[];
   setIsScannerOpen: (v: boolean) => void;
 }
 
-export const BoilerModal = ({ 
-  isOpen, 
-  onClose, 
-  onAdd, 
-  onDelete,
-  editingBoilerId,
-  newBoilerData,
-  setNewBoilerData,
-  existingBoilers,
-  setIsScannerOpen
-}: BoilerModalProps) => {
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Serial number duplicate check
-    if (!editingBoilerId && newBoilerData.serialNumber) {
-      const existingBoiler = existingBoilers.find(b => b.serialNumber === newBoilerData.serialNumber);
-      if (existingBoiler) {
-        const confirmSave = window.confirm('Zariadenie s týmto sériovým číslom už existuje. Chcete ho napriek tomu uložiť?');
-        if (!confirmSave) return;
-      }
+export const BoilerModal = ({ boiler, onSave, onCancel, customerId, existingBoilers, setIsScannerOpen }: BoilerModalProps) => {
+  const [formData, setFormData] = useState<Partial<Boiler>>(
+    boiler || {
+      customerId,
+      name: 'Hlavný kotol',
+      brand: '',
+      model: '',
+      serialNumber: '',
+      address: '',
+      installDate: new Date().toISOString().split('T')[0],
+      lastServiceDate: '',
+      nextServiceDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+      notes: ''
     }
+  );
+  const [isSaving, setIsSaving] = useState(false);
 
-    onAdd(newBoilerData);
-    onClose(); // Close modal after successful submit
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await onSave(formData);
+    } catch (error) {
+      console.error("Error saving boiler", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-start justify-center p-4 overflow-y-auto pt-10 pb-10">
-      <motion.div 
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="card w-full max-w-2xl p-6 space-y-6"
-      >
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-[#3A87AD]">
-            {editingBoilerId ? 'Upraviť zariadenie' : 'Pridať nové zariadenie'}
-          </h2>
-          {editingBoilerId && (
-            <button 
-              type="button"
-              onClick={() => {
-                if (window.confirm('Naozaj chcete vymazať toto zariadenie?')) {
-                  onDelete(editingBoilerId);
-                  onClose();
-                }
-              }}
-              className="p-2 text-white hover:bg-red-500 rounded-xl transition-all shadow-lg"
-              title="Vymazať zariadenie"
-            >
-              <Trash2 size={20} />
-            </button>
-          )}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-[#1E1E1E] w-full max-w-2xl rounded-3xl shadow-2xl border border-white/10 my-8 animate-in zoom-in-95 duration-300">
+        <div className="p-6 border-b border-white/5 flex justify-between items-center sticky top-0 bg-[#1E1E1E]/80 backdrop-blur-xl z-10 rounded-t-3xl">
+          <h2 className="text-xl font-bold text-white">{boiler ? 'Upraviť zariadenie' : 'Nové zariadenie'}</h2>
+          <button onClick={onCancel} className="p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-colors">
+            <X size={24} />
+          </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <BoilerFormFields 
-            boilerData={newBoilerData} 
-            setBoilerData={setNewBoilerData} 
-            existingBoilers={existingBoilers} 
-            setIsScannerOpen={setIsScannerOpen}
-          />
-          <div className="flex gap-3 pt-4 border-t border-white/5">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Zrušiť</button>
-            <button type="submit" className="btn-primary flex-1 justify-center">Uložiť zariadenie</button>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest ml-1">Adresa inštalácie</label>
+              <AddressSearch 
+                value={formData.address || ''}
+                onChange={(v) => setFormData({ ...formData, address: v })}
+                onSelect={(addr, lat, lng) => setFormData({ ...formData, address: addr, lat, lng })}
+              />
+            </div>
+
+            <BoilerFormFields 
+              boilerData={formData}
+              setBoilerData={setFormData}
+              existingBoilers={existingBoilers}
+              setIsScannerOpen={setIsScannerOpen}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button 
+              type="button" 
+              onClick={onCancel} 
+              className="btn-secondary flex-1 justify-center py-4"
+            >
+              Zrušiť
+            </button>
+            <button 
+              type="submit" 
+              disabled={isSaving}
+              className="btn-primary flex-[2] justify-center py-4 shadow-xl shadow-[#3A87AD]/20"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} />
+                  Ukladám...
+                </>
+              ) : (
+                <>
+                  <Save size={20} />
+                  {boiler ? 'Uložiť zmeny' : 'Pridať zariadenie'}
+                </>
+              )}
+            </button>
           </div>
         </form>
-      </motion.div>
+      </div>
     </div>
   );
 };
