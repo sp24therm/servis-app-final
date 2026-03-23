@@ -87,16 +87,16 @@ export const CustomerList = ({
         </button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card p-6 md:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="card p-6 lg:col-span-2">
           <div className="flex justify-between items-start mb-4">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <TrendingUp size={20} className="text-[#3A87AD]" />
               Prírastok zákazníkov (12m)
             </h2>
           </div>
-          <div className="h-[150px] w-full">
-            <ResponsiveContainer width="100%" height={150}>
+          <div className="h-[200px] sm:h-[150px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={customerTrendData}>
                 <defs>
                   <linearGradient id="colorCust" x1="0" y1="0" x2="0" y2="1">
@@ -128,10 +128,10 @@ export const CustomerList = ({
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="card p-6 flex flex-col justify-center items-center text-center">
-          <p className="text-sm font-bold text-white/40 uppercase tracking-wider mb-1">Celkový počet zákazníkov</p>
+        <div className="card p-6 flex flex-col justify-center items-center text-center min-h-[120px]">
+          <p className="text-base font-bold text-white/40 uppercase tracking-wider mb-1">Celkový počet zákazníkov</p>
           <p className="text-5xl font-bold text-[#3A87AD]">{customers.length}</p>
-          <div className="mt-4 flex items-center gap-2 text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full text-xs font-bold">
+          <div className="mt-4 flex items-center gap-2 text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full text-sm font-bold">
             <TrendingUp size={14} />
             <span>Aktívne rastúce</span>
           </div>
@@ -157,25 +157,25 @@ export const CustomerList = ({
             <div 
               key={customer.id} 
               onClick={() => onSelectCustomer(customer.id)}
-              className="card p-4 flex items-center justify-between hover:border-[#3A87AD]/30 hover:bg-[#3A87AD]/5 cursor-pointer transition-all group"
+              className="card p-5 flex items-center justify-between hover:border-[#3A87AD]/30 hover:bg-[#3A87AD]/5 cursor-pointer transition-all group min-h-[80px]"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/5 text-white/60 rounded-full flex items-center justify-center font-bold">
+                <div className="w-14 h-14 bg-white/5 text-white/60 rounded-full flex items-center justify-center font-bold text-xl">
                   {customer.name.charAt(0)}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-white leading-tight">{customer.name}</h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                    <h3 className="font-bold text-white text-lg leading-tight">{customer.name}</h3>
                     <div className="flex flex-wrap gap-1">
                       {Array.from(new Set(customerBoilers.map(b => b.brand))).map(brand => (
                         <span key={brand} className="text-[10px] bg-[#3A87AD]/10 text-[#3A87AD] px-1.5 py-0.5 rounded-md font-bold uppercase">{brand}</span>
                       ))}
                     </div>
                   </div>
-                  {customer.company && <p className="text-xs text-white/40 mt-0.5">{customer.company}</p>}
+                  {customer.company && <p className="text-sm text-white/40 mt-0.5">{customer.company}</p>}
                   
-                  <div className="flex items-center gap-3 text-sm text-white/60 mt-1">
-                    <span className="flex items-center gap-1"><Phone size={14} /> {customer.phone}</span>
+                  <div className="flex items-center gap-3 text-base text-white/60 mt-1">
+                    <span className="flex items-center gap-1"><Phone size={16} /> {customer.phone}</span>
                     <div className="flex gap-1">
                       {customerBoilers.map(b => {
                         const status = getBoilerStatus(b.nextServiceDate);

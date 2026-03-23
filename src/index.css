@@ -9,7 +9,6 @@
 
 body {
   @apply text-[#E0E0E0] font-sans;
-  background-image: url('/wall2.jpg');
   background-attachment: fixed;
   background-size: cover;
   background-position: center;

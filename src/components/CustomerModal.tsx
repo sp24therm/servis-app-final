@@ -3,11 +3,13 @@ import { Trash2, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Customer, Boiler } from '../types';
 import { BoilerFormFields } from './BoilerFormFields';
+import { doc, collection } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface CustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (customer: Omit<Customer, 'id'>, boiler?: Omit<Boiler, 'id' | 'customerId'>) => void;
+  onAdd: (customer: Omit<Customer, 'id'>, boiler?: Omit<Boiler, 'id' | 'customerId'>, preGeneratedIds?: { customerId?: string, boilerId?: string }) => void;
   onUpdate: (id: string, customer: Partial<Customer>) => void;
   onDelete: (id: string) => void;
   editingCustomer: Customer | null;
@@ -43,6 +45,12 @@ export const CustomerModal = ({
     notes: '',
     photos: {}
   });
+
+  // Pre-generate IDs for new customer/boiler
+  const [preGeneratedIds] = useState(() => ({
+    customerId: doc(collection(db, 'customers')).id,
+    boilerId: doc(collection(db, 'boilers')).id
+  }));
 
   useEffect(() => {
     if (isOpen) {
@@ -97,7 +105,7 @@ export const CustomerModal = ({
     if (editingCustomer) {
       onUpdate(editingCustomer.id, newCustomer);
     } else {
-      onAdd(newCustomer, addBoiler ? newBoiler : undefined);
+      onAdd(newCustomer, addBoiler ? newBoiler : undefined, preGeneratedIds);
     }
   };
 
@@ -205,6 +213,8 @@ export const CustomerModal = ({
               setBoilerData={setNewBoiler} 
               existingBoilers={boilers} 
               setIsScannerOpen={setIsScannerOpen}
+              customerId={preGeneratedIds.customerId}
+              boilerId={preGeneratedIds.boilerId}
             />
           )}
 

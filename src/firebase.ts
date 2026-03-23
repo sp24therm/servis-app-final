@@ -77,7 +77,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-export const uploadFile = (file: File, path: string): Promise<string> => {
+export const uploadFile = (file: File | Blob, path: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     const storageRef = ref(storage, path);
     const uploadTask = uploadBytesResumable(storageRef, file);

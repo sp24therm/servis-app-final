@@ -126,9 +126,9 @@ export const useAppData = (user: User | null) => {
     }
   };
 
-  const handleAddCustomer = async (newCust: Omit<Customer, 'id'>, boilerData?: Omit<Boiler, 'id' | 'customerId'>) => {
+  const handleAddCustomer = async (newCust: Omit<Customer, 'id'>, boilerData?: Omit<Boiler, 'id' | 'customerId'>, preGeneratedIds?: { customerId?: string, boilerId?: string }) => {
     try {
-      const customerId = `c${Date.now()}`;
+      const customerId = preGeneratedIds?.customerId || `c${Date.now()}`;
       const cleanCust = Object.fromEntries(
         Object.entries(newCust).filter(([_, v]) => v !== undefined && v !== '')
       );
@@ -142,7 +142,7 @@ export const useAppData = (user: User | null) => {
       await setDoc(doc(db, 'customers', customerId), customer);
 
       if (boilerData) {
-        const boilerId = `b${Date.now()}`;
+        const boilerId = preGeneratedIds?.boilerId || `b${Date.now()}`;
         const cleanBoiler = Object.fromEntries(
           Object.entries(boilerData).filter(([_, v]) => v !== undefined)
         );
@@ -195,7 +195,7 @@ export const useAppData = (user: User | null) => {
     }
   };
 
-  const handleAddBoiler = async (selectedCustomerId: string | null, editingBoilerId: string | null, boilerData: Omit<Boiler, 'id' | 'customerId'>) => {
+  const handleAddBoiler = async (selectedCustomerId: string | null, editingBoilerId: string | null, boilerData: Omit<Boiler, 'id' | 'customerId'>, preGeneratedBoilerId?: string) => {
     if (!selectedCustomerId) return;
     
     try {
@@ -203,7 +203,7 @@ export const useAppData = (user: User | null) => {
         const boilerRef = doc(db, 'boilers', editingBoilerId);
         await updateDoc(boilerRef, { ...boilerData });
       } else {
-        const boilerId = `b${Date.now()}`;
+        const boilerId = preGeneratedBoilerId || `b${Date.now()}`;
         const boiler: Boiler = { 
           ...boilerData, 
           id: boilerId, 

@@ -62,10 +62,15 @@ export const CustomerDetail = ({
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right duration-300">
-      <button onClick={onBack} className="btn-secondary mb-2">
-        <ArrowLeft size={20} />
-        Späť
-      </button>
+      <div className="flex items-center gap-4">
+        <button onClick={onBack} className="p-3 hover:bg-white/5 rounded-full text-white/60 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
+          <ArrowLeft size={24} />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold text-white leading-tight">{customer.name}</h1>
+          <p className="text-lg text-white/40">{customer.company || 'Súkromná osoba'}</p>
+        </div>
+      </div>
 
       <div className="card p-6 bg-[#3A87AD] text-white border-none relative overflow-hidden">
         <div className="flex justify-between items-start">
@@ -74,21 +79,21 @@ export const CustomerDetail = ({
               <h1 className="text-3xl font-bold">{customer.name}</h1>
               <button 
                 onClick={() => onEditCustomer(customer)}
-                className="p-1.5 text-white/40 hover:text-white transition-colors rounded-lg"
+                className="p-3 text-white/40 hover:text-white transition-colors rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center"
                 title="Upraviť údaje"
               >
-                <PenTool size={18} />
+                <PenTool size={22} />
               </button>
             </div>
             {customer.company && <p className="text-white/80 font-medium">{customer.company}</p>}
-            <div className="mt-4 space-y-2">
-              <a href={`tel:${customer.phone}`} className="flex items-center gap-2 text-white/80 hover:text-white transition-colors">
-                <Phone size={18} />
+            <div className="mt-4 space-y-3">
+              <a href={`tel:${customer.phone}`} className="flex items-center gap-3 text-white/80 hover:text-white transition-colors text-lg min-h-[44px]">
+                <Phone size={22} />
                 {customer.phone}
               </a>
               {customer.email && (
-                <p className="flex items-center gap-2 text-white/80">
-                  <Info size={18} />
+                <p className="flex items-center gap-3 text-white/80 text-lg">
+                  <Info size={22} />
                   {customer.email}
                 </p>
               )}

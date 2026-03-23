@@ -10,16 +10,13 @@ import {
   Camera,
   PieChart as PieChartIcon,
   CheckCircle2,
-  PenTool
+  PenTool,
+  Loader2
 } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { Boiler, ServiceRecord, ServiceStatus } from '../types';
-import { storage, uploadFile } from '../firebase';
-import { 
-  ref, 
-  getDownloadURL,
-  uploadBytes
-} from 'firebase/storage';
+import { uploadFile } from '../firebase';
+import { compressImage } from '../utils/imageUtils';
 
 const trimCanvas = (canvas: HTMLCanvasElement) => {
   const ctx = canvas.getContext('2d');
@@ -122,6 +119,7 @@ export const ServiceForm = ({
   const [photoBoiler, setPhotoBoiler] = useState<string | null>(initialData?.photoBoiler || null);
   const [photoConnection, setPhotoConnection] = useState<string | null>(initialData?.photoConnection || null);
   const [photoChimney, setPhotoChimney] = useState<string | null>(initialData?.photoChimney || null);
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [signed, setSigned] = useState(!!initialData);
   const sigCanvas = useRef<SignatureCanvas>(null);
 
@@ -135,8 +133,6 @@ export const ServiceForm = ({
     }
   }, []);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const handlePhotoClick = (type: string = 'photo') => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -144,9 +140,11 @@ export const ServiceForm = ({
     input.onchange = async (e: any) => {
       const file = e.target.files?.[0];
       if (file) {
+        setUploading(prev => ({ ...prev, [type]: true }));
         try {
+          const compressedBlob = await compressImage(file);
           const path = `services/${boiler.id}/${Date.now()}_${file.name}`;
-          const downloadURL = await uploadFile(file, path);
+          const downloadURL = await uploadFile(compressedBlob, path);
           if (type === 'photo') setPhoto(downloadURL);
           else if (type === 'photoBefore') setPhotoBefore(downloadURL);
           else if (type === 'photoAfter') setPhotoAfter(downloadURL);
@@ -156,6 +154,8 @@ export const ServiceForm = ({
         } catch (error) {
           console.error("Upload failed", error);
           alert("Nahrávanie zlyhalo. Skontrolujte pripojenie.");
+        } finally {
+          setUploading(prev => ({ ...prev, [type]: false }));
         }
       }
     };
@@ -169,20 +169,6 @@ export const ServiceForm = ({
     else if (type === 'photoBoiler') setPhotoBoiler(null);
     else if (type === 'photoConnection') setPhotoConnection(null);
     else if (type === 'photoChimney') setPhotoChimney(null);
-  };
-
-  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      try {
-        const storageRef = ref(storage, `services/${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        setPhoto(downloadURL);
-      } catch (error) {
-        console.error("Upload failed", error);
-      }
-    }
   };
 
   return (
@@ -369,6 +355,12 @@ export const ServiceForm = ({
                   {photoBefore ? (
                     <div className="relative w-full h-full group">
                       <img src={photoBefore} className="w-full h-full object-cover" />
+                      {uploading['photoBefore'] && (
+                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                          <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                        </div>
+                      )}
                       <button 
                         onClick={(e) => { e.stopPropagation(); removePhoto('photoBefore'); }} 
                         className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
@@ -378,7 +370,14 @@ export const ServiceForm = ({
                     </div>
                   ) : (
                     <div onClick={() => handlePhotoClick('photoBefore')} className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
-                      <Camera size={20} className="text-white/20" />
+                      {uploading['photoBefore'] ? (
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                          <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                        </div>
+                      ) : (
+                        <Camera size={20} className="text-white/20" />
+                      )}
                     </div>
                   )}
                 </div>
@@ -389,6 +388,12 @@ export const ServiceForm = ({
                   {photoAfter ? (
                     <div className="relative w-full h-full group">
                       <img src={photoAfter} className="w-full h-full object-cover" />
+                      {uploading['photoAfter'] && (
+                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                          <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                        </div>
+                      )}
                       <button 
                         onClick={(e) => { e.stopPropagation(); removePhoto('photoAfter'); }} 
                         className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
@@ -398,7 +403,14 @@ export const ServiceForm = ({
                     </div>
                   ) : (
                     <div onClick={() => handlePhotoClick('photoAfter')} className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
-                      <Camera size={20} className="text-white/20" />
+                      {uploading['photoAfter'] ? (
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                          <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                        </div>
+                      ) : (
+                        <Camera size={20} className="text-white/20" />
+                      )}
                     </div>
                   )}
                 </div>
@@ -429,13 +441,26 @@ export const ServiceForm = ({
                   {photoBoiler ? (
                     <>
                       <img src={photoBoiler} className="w-full h-full object-cover" />
+                      {uploading['photoBoiler'] && (
+                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                          <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                        </div>
+                      )}
                       <button onClick={() => removePhoto('photoBoiler')} className="absolute top-2 right-2 p-1 bg-black/60 text-white rounded-full hover:bg-black/80">
                         <Trash2 size={14} />
                       </button>
                     </>
                   ) : (
                     <div onClick={() => handlePhotoClick('photoBoiler')} className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
-                      <Camera size={20} className="text-white/20" />
+                      {uploading['photoBoiler'] ? (
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                          <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                        </div>
+                      ) : (
+                        <Camera size={20} className="text-white/20" />
+                      )}
                     </div>
                   )}
                 </div>
@@ -446,13 +471,26 @@ export const ServiceForm = ({
                   {photoConnection ? (
                     <>
                       <img src={photoConnection} className="w-full h-full object-cover" />
+                      {uploading['photoConnection'] && (
+                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                          <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                        </div>
+                      )}
                       <button onClick={() => removePhoto('photoConnection')} className="absolute top-2 right-2 p-1 bg-black/60 text-white rounded-full hover:bg-black/80">
                         <Trash2 size={14} />
                       </button>
                     </>
                   ) : (
                     <div onClick={() => handlePhotoClick('photoConnection')} className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
-                      <Camera size={20} className="text-white/20" />
+                      {uploading['photoConnection'] ? (
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                          <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                        </div>
+                      ) : (
+                        <Camera size={20} className="text-white/20" />
+                      )}
                     </div>
                   )}
                 </div>
@@ -463,13 +501,26 @@ export const ServiceForm = ({
                   {photoChimney ? (
                     <>
                       <img src={photoChimney} className="w-full h-full object-cover" />
+                      {uploading['photoChimney'] && (
+                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                          <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                        </div>
+                      )}
                       <button onClick={() => removePhoto('photoChimney')} className="absolute top-2 right-2 p-1 bg-black/60 text-white rounded-full hover:bg-black/80">
                         <Trash2 size={14} />
                       </button>
                     </>
                   ) : (
                     <div onClick={() => handlePhotoClick('photoChimney')} className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
-                      <Camera size={20} className="text-white/20" />
+                      {uploading['photoChimney'] ? (
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                          <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                        </div>
+                      ) : (
+                        <Camera size={20} className="text-white/20" />
+                      )}
                     </div>
                   )}
                 </div>
@@ -684,27 +735,35 @@ export const ServiceForm = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="space-y-3">
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              accept="image/*" 
-              onChange={onFileChange}
-            />
             <label className="text-sm font-bold text-white/70 flex items-center gap-2">
               <Camera size={18} /> Fotografia stavu
             </label>
             <div 
               onClick={() => handlePhotoClick('photo')}
-              className="aspect-video bg-white/5 rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden"
+              className="aspect-video bg-white/5 rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden relative"
             >
               {photo ? (
-                <img src={photo} alt="Boiler" className="w-full h-full object-cover" />
-              ) : (
                 <>
-                  <Camera className="text-white/20 mb-2" size={32} />
-                  <span className="text-xs font-medium text-white/40">Kliknite pre odfotenie</span>
+                  <img src={photo} alt="Boiler" className="w-full h-full object-cover" />
+                  {uploading['photo'] && (
+                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2">
+                      <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                      <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                    </div>
+                  )}
                 </>
+              ) : (
+                uploading['photo'] ? (
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                    <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Camera className="text-white/20 mb-2" size={32} />
+                    <span className="text-xs font-medium text-white/40">Kliknite pre odfotenie</span>
+                  </>
+                )
               )}
             </div>
           </div>

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Save, MapPin, Loader2 } from 'lucide-react';
 import { Boiler } from '../types';
 import { AddressSearch } from './AddressSearch';
 import { BoilerFormFields } from './BoilerFormFields';
+import { doc, collection } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface BoilerModalProps {
   boiler?: Boiler;
@@ -29,6 +31,10 @@ export const BoilerModal = ({ boiler, onSave, onCancel, customerId, existingBoil
     }
   );
   const [isSaving, setIsSaving] = useState(false);
+
+  const preGeneratedBoilerId = useMemo(() => {
+    return doc(collection(db, 'boilers')).id;
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +74,8 @@ export const BoilerModal = ({ boiler, onSave, onCancel, customerId, existingBoil
               setBoilerData={setFormData}
               existingBoilers={existingBoilers}
               setIsScannerOpen={setIsScannerOpen}
+              customerId={customerId || boiler?.customerId || ''}
+              boilerId={boiler?.id || preGeneratedBoilerId}
             />
           </div>
 

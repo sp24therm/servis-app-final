@@ -106,12 +106,12 @@ export const Dashboard = ({
     <div className="space-y-6 animate-in fade-in duration-500">
       <header className="flex justify-between items-end">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dobrý deň!</h1>
-          <p className="text-white/60">Tu je prehľad dnešných úloh.</p>
+          <h1 className="text-3xl font-bold text-white">Dobrý deň!</h1>
+          <p className="text-white/60 text-lg">Tu je prehľad dnešných úloh.</p>
         </div>
-        <div className="text-right hidden sm:block">
-          <p className="text-sm font-medium text-white/40 uppercase tracking-wider">Dnes</p>
-          <p className="text-lg font-bold text-white/80">{today.toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        <div className="text-right hidden lg:block">
+          <p className="text-base font-medium text-white/40 uppercase tracking-wider">Dnes</p>
+          <p className="text-xl font-bold text-white/80">{today.toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
       </header>
 
@@ -119,41 +119,41 @@ export const Dashboard = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <button 
           onClick={() => setActiveFilter(activeFilter === 'overdue' ? null : 'overdue')}
-          className={`card p-3 border-l-4 transition-all text-left ${activeFilter === 'overdue' ? 'border-l-[#C14F4F] bg-[#C14F4F]/10 ring-2 ring-[#C14F4F]/20' : 'border-l-[#C14F4F]/50 hover:bg-white/5'}`}
+          className={`card p-4 border-l-4 transition-all text-left min-h-[60px] ${activeFilter === 'overdue' ? 'border-l-[#C14F4F] bg-[#C14F4F]/10 ring-2 ring-[#C14F4F]/20' : 'border-l-[#C14F4F]/50 hover:bg-white/5'}`}
         >
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-white/40 uppercase">Po termíne</span>
-            <span className="text-xl font-bold text-[#C14F4F]">{categorizedBoilers.overdue.length}</span>
+          <div className="flex flex-col justify-between h-full">
+            <span className="text-[11px] font-bold text-white/40 uppercase">Po termíne</span>
+            <span className="text-2xl font-bold text-[#C14F4F]">{categorizedBoilers.overdue.length}</span>
           </div>
         </button>
 
         <button 
           onClick={() => setActiveFilter(activeFilter === 'dormant' ? null : 'dormant')}
-          className={`card p-3 border-l-4 transition-all text-left ${activeFilter === 'dormant' ? 'border-l-[#9CA3AF] bg-[#9CA3AF]/10 ring-2 ring-[#9CA3AF]/20' : 'border-l-[#9CA3AF]/50 hover:bg-white/5'}`}
+          className={`card p-4 border-l-4 transition-all text-left min-h-[60px] ${activeFilter === 'dormant' ? 'border-l-[#9CA3AF] bg-[#9CA3AF]/10 ring-2 ring-[#9CA3AF]/20' : 'border-l-[#9CA3AF]/50 hover:bg-white/5'}`}
         >
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-white/40 uppercase">Zaspätý</span>
-            <span className="text-xl font-bold text-[#9CA3AF]">{categorizedBoilers.dormant.length}</span>
+          <div className="flex flex-col justify-between h-full">
+            <span className="text-[11px] font-bold text-white/40 uppercase">Zaspätý</span>
+            <span className="text-2xl font-bold text-[#9CA3AF]">{categorizedBoilers.dormant.length}</span>
           </div>
         </button>
         
         <button 
           onClick={() => setActiveFilter(activeFilter === 'upcoming' ? null : 'upcoming')}
-          className={`card p-3 border-l-4 transition-all text-left ${activeFilter === 'upcoming' ? 'border-l-[#F59E0B] bg-[#F59E0B]/10 ring-2 ring-[#F59E0B]/20' : 'border-l-[#F59E0B]/50 hover:bg-white/5'}`}
+          className={`card p-4 border-l-4 transition-all text-left min-h-[60px] ${activeFilter === 'upcoming' ? 'border-l-[#F59E0B] bg-[#F59E0B]/10 ring-2 ring-[#F59E0B]/20' : 'border-l-[#F59E0B]/50 hover:bg-white/5'}`}
         >
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-white/40 uppercase">Blížiace sa</span>
-            <span className="text-xl font-bold text-[#F59E0B]">{categorizedBoilers.upcoming.length}</span>
+          <div className="flex flex-col justify-between h-full">
+            <span className="text-[11px] font-bold text-white/40 uppercase">Blížiace sa</span>
+            <span className="text-2xl font-bold text-[#F59E0B]">{categorizedBoilers.upcoming.length}</span>
           </div>
         </button>
 
         <button 
           onClick={() => setActiveFilter(activeFilter === 'ontime' ? null : 'ontime')}
-          className={`card p-3 border-l-4 transition-all text-left ${activeFilter === 'ontime' ? 'border-l-[#10B981] bg-[#10B981]/10 ring-2 ring-[#10B981]/20' : 'border-l-[#10B981]/50 hover:bg-white/5'}`}
+          className={`card p-4 border-l-4 transition-all text-left min-h-[60px] ${activeFilter === 'ontime' ? 'border-l-[#10B981] bg-[#10B981]/10 ring-2 ring-[#10B981]/20' : 'border-l-[#10B981]/50 hover:bg-white/5'}`}
         >
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-white/40 uppercase">V termíne</span>
-            <span className="text-xl font-bold text-[#10B981]">{categorizedBoilers.ontime.length}</span>
+          <div className="flex flex-col justify-between h-full">
+            <span className="text-[11px] font-bold text-white/40 uppercase">V termíne</span>
+            <span className="text-2xl font-bold text-[#10B981]">{categorizedBoilers.ontime.length}</span>
           </div>
         </button>
       </div>
@@ -237,8 +237,8 @@ export const Dashboard = ({
               <p className="text-xl font-bold text-[#3A87AD]">{boilers.length}</p>
             </div>
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height={300}>
+          <div className="h-[200px] sm:h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={brandData}
@@ -274,8 +274,8 @@ export const Dashboard = ({
             <History size={20} className="text-[#3A87AD]" />
             Typy zásahov (%)
           </h2>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height={300}>
+          <div className="h-[200px] sm:h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={serviceTypeData}

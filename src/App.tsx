@@ -70,6 +70,7 @@ import { ServiceDetailModal } from './components/ServiceDetailModal';
 import { CustomerDetail } from './components/CustomerDetail';
 import { ServiceForm } from './components/ServiceForm';
 import { BoilerFormFields } from './components/BoilerFormFields';
+import { BG_URL } from './config/constants';
 
 // Fix for default marker icons in Leaflet with Vite
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -100,6 +101,8 @@ import {
 import { 
   doc, 
   getDocFromServer,
+  onSnapshot,
+  collection
 } from 'firebase/firestore';
 import { useAppData } from './hooks/useAppData';
 import { 
@@ -109,6 +112,7 @@ import {
 } from 'firebase/storage';
 import { Html5Qrcode } from 'html5-qrcode';
 import { AppState, Customer, Boiler, ServiceRecord, ServiceStatus, Contact } from './types';
+import { Settings } from './components/Settings';
 
 // --- Helper Functions ---
 
@@ -215,6 +219,8 @@ export default function App() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const lastScrollY = useRef(0);
 
   // Scroll to hide sidebar logic
@@ -234,6 +240,13 @@ export default function App() {
   }, []);
 
   const [isBoilerModalOpen, setIsBoilerModalOpen] = useState(false);
+
+  const newBoilerId = useMemo(() => {
+    if (isBoilerModalOpen && !editingBoilerId) {
+      return doc(collection(db, 'boilers')).id;
+    }
+    return '';
+  }, [isBoilerModalOpen, editingBoilerId]);
 
   const shouldShowSidebar = isSidebarVisible && !isCustomerModalOpen && !isBoilerModalOpen && !isDeleteConfirmOpen;
   const [newBoilerData, setNewBoilerData] = useState({
@@ -262,6 +275,19 @@ export default function App() {
       }
     };
     testConnection();
+  }, [user]);
+
+  // Load Background Settings
+  useEffect(() => {
+    if (!user) return;
+    
+    const unsub = onSnapshot(doc(db, 'appConfig', 'appearance'), (doc) => {
+      if (doc.exists()) {
+        setBackgroundUrl(doc.data().backgroundUrl);
+      }
+    });
+
+    return () => unsub();
   }, [user]);
 
   const handleLogin = async () => {
@@ -313,9 +339,9 @@ export default function App() {
     }
   };
 
-  const handleAddCustomer = async (newCust: Omit<Customer, 'id'>, boilerData?: Omit<Boiler, 'id' | 'customerId'>) => {
+  const handleAddCustomer = async (newCust: Omit<Customer, 'id'>, boilerData?: Omit<Boiler, 'id' | 'customerId'>, preGeneratedIds?: { customerId?: string, boilerId?: string }) => {
     try {
-      await _handleAddCustomer(newCust, boilerData);
+      await _handleAddCustomer(newCust, boilerData, preGeneratedIds);
       setIsCustomerModalOpen(false);
       setEditingCustomerId(null);
     } catch (error) {
@@ -414,7 +440,7 @@ export default function App() {
 
   const handleAddBoiler = async (boilerData: Omit<Boiler, 'id' | 'customerId'>) => {
     try {
-      await _handleAddBoiler(selectedCustomerId, editingBoilerId, boilerData);
+      await _handleAddBoiler(selectedCustomerId, editingBoilerId, boilerData, newBoilerId);
       setIsBoilerModalOpen(false);
       setEditingBoilerId(null);
       setNewBoilerData({
@@ -559,45 +585,25 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen flex flex-col md:flex-row">
+      <div 
+        className="min-h-screen flex flex-col md:flex-row bg-[#0A0A0A] relative overflow-hidden"
+        style={{
+          backgroundImage: `url(${backgroundUrl || BG_URL})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed'
+        }}
+      >
+        <div className="absolute inset-0 bg-black/50 pointer-events-none" />
+        
         <Sidebar 
           activeTab={activeTab === 'customerDetail' || activeTab === 'serviceForm' ? 'customers' : activeTab} 
           setActiveTab={setActiveTab} 
           isVisible={shouldShowSidebar}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
         
-        <main className="flex-1 p-4 sm:p-6 md:p-10 pb-24 md:pb-10 max-w-5xl mx-auto w-full overflow-y-auto relative">
-          {/* Mobile Logo Visibility */}
-          <div className="md:hidden flex justify-between items-center mb-6">
-            <div className="flex items-center gap-2">
-              <img 
-                src="/logo.png" 
-                onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/logo/200/200'; }}
-                alt="Logo" 
-                className="h-8 w-auto object-contain" 
-                referrerPolicy="no-referrer" 
-              />
-              <span className="text-[#3A87AD] font-bold text-lg">SP Therm s.r.o.</span>
-            </div>
-            <button 
-              onClick={handleLogout}
-              className="p-2 text-white/60 hover:text-white transition-colors"
-              title="Odhlásiť sa"
-            >
-              <ArrowLeft size={20} />
-            </button>
-          </div>
-
-          <div className="hidden md:flex justify-end md:absolute md:top-6 md:right-10">
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-white/40 hover:text-white/60 transition-colors text-sm font-medium"
-            >
-              <ArrowLeft size={16} />
-              Odhlásiť sa ({user.displayName?.split(' ')[0]})
-            </button>
-          </div>
-
+        <main className="flex-1 p-4 sm:p-6 md:p-10 lg:pt-10 pb-24 md:pb-10 max-w-5xl mx-auto w-full overflow-y-auto relative z-10">
           <AnimatePresence mode="wait">
           <motion.div
             key={activeTab + (selectedCustomerId || '') + (activeServiceBoilerId || '')}
@@ -639,6 +645,8 @@ export default function App() {
                   setBoilerData={setNewBoilerData} 
                   existingBoilers={data.boilers} 
                   setIsScannerOpen={setIsScannerOpen}
+                  customerId={selectedCustomerId || ''}
+                  boilerId={editingBoilerId || newBoilerId}
                 />
                 <div className="flex gap-3 pt-4 border-t border-white/5">
                   <button type="button" onClick={() => { setIsBoilerModalOpen(false); setEditingBoilerId(null); }} className="btn-secondary flex-1 justify-center">Zrušiť</button>
@@ -657,6 +665,14 @@ export default function App() {
               setIsScannerOpen(false);
             }}
             onClose={() => setIsScannerOpen(false)}
+          />
+        )}
+
+        {/* Settings Modal */}
+        {isSettingsOpen && (
+          <Settings 
+            onClose={() => setIsSettingsOpen(false)} 
+            onBackgroundUpdate={(url) => setBackgroundUrl(url)}
           />
         )}
 

@@ -1,21 +1,25 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Wrench, Camera, Scan } from 'lucide-react';
+import { Wrench, Camera, Scan, Loader2 } from 'lucide-react';
 import { Boiler } from '../types';
 import { AddressSearch } from './AddressSearch';
 import Tesseract from 'tesseract.js';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
+import { uploadFile } from '../firebase';
+import { compressImage } from '../utils/imageUtils';
 
 export const BoilerFormFields = ({ 
   boilerData, 
   setBoilerData, 
   existingBoilers,
-  setIsScannerOpen
+  setIsScannerOpen,
+  customerId,
+  boilerId
 }: { 
   boilerData: any, 
   setBoilerData: any, 
   existingBoilers: Boiler[],
-  setIsScannerOpen: (v: boolean) => void
+  setIsScannerOpen: (v: boolean) => void,
+  customerId: string,
+  boilerId: string
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activePhotoType, setActivePhotoType] = useState<string | null>(null);
@@ -46,9 +50,12 @@ export const BoilerFormFields = ({
       setUploading(prev => ({ ...prev, [type]: true }));
       
       try {
-        const storageRef = ref(storage, `boilers/${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
+        // 1. Compress image
+        const compressedBlob = await compressImage(file);
+        
+        // 2. Upload to Firebase Storage with new path
+        const storagePath = `customers/${customerId}/boilers/${boilerId}/${Date.now()}_${file.name}`;
+        const downloadURL = await uploadFile(compressedBlob, storagePath);
         
         setBoilerData((prev: any) => ({
           ...prev,
@@ -218,8 +225,9 @@ export const BoilerFormFields = ({
                 <>
                   <img src={previews[type] || boilerData.photos[type]} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   {uploading[type] && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-[#3A87AD]/30 border-t-[#3A87AD] rounded-full animate-spin" />
+                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2">
+                      <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                      <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
@@ -228,7 +236,10 @@ export const BoilerFormFields = ({
                 </>
               ) : (
                 uploading[type] ? (
-                  <div className="w-6 h-6 border-2 border-[#3A87AD]/30 border-t-[#3A87AD] rounded-full animate-spin" />
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-6 h-6 text-[#3A87AD] animate-spin" />
+                    <span className="text-[10px] font-bold text-[#3A87AD] animate-pulse uppercase">Nahrávam...</span>
+                  </div>
                 ) : (
                   <Camera size={20} className="text-white/20" />
                 )
