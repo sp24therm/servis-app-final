@@ -94,6 +94,7 @@ export interface Contact {
   name: string;
   company?: string;
   specialization?: string; // e.g. "Servisný technik", "Predajňa", "Inštalatér"
+  brand?: string; // e.g. "Viessmann", "Buderus"
   phone: string;
   email?: string;
   address?: string;
@@ -101,9 +102,21 @@ export interface Contact {
   createdAt?: string;
 }
 
+export interface PriceListItem {
+  id: string;
+  category: string;
+  name: string;
+  price: number;
+  priceMax: number | null;
+  unit: string;
+  emergency: boolean;
+  order: number;
+}
+
 export interface AppState {
   customers: Customer[];
   boilers: Boiler[];
   services: ServiceRecord[];
   contacts: Contact[];
+  priceList: PriceListItem[];
 }

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Plus, Phone, Info, MapPin, PenTool } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Search, Plus, Phone, Info, MapPin, PenTool, ChevronDown, ChevronUp } from 'lucide-react';
 import { Contact } from '../types';
 
 interface ContactsListProps {
@@ -14,13 +14,37 @@ export const ContactsList = ({
   onEditContact
 }: ContactsListProps) => {
   const [search, setSearch] = useState('');
+  const [selectedSpecialization, setSelectedSpecialization] = useState<string | null>(null);
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<'specialization' | 'brand' | null>(null);
 
-  const filteredContacts = contacts.filter(c => 
-    (c.name || '').toLowerCase().includes(search.toLowerCase()) || 
-    (c.specialization || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.phone || '').includes(search) ||
-    (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
-  );
+  const uniqueSpecializations = useMemo(() => {
+    return Array.from(new Set(contacts.map(c => c.specialization).filter(Boolean))) as string[];
+  }, [contacts]);
+
+  const uniqueBrands = useMemo(() => {
+    return Array.from(new Set(contacts.map(c => c.brand).filter(Boolean))) as string[];
+  }, [contacts]);
+
+  const openNavigation = (address: string) => {
+    const encoded = encodeURIComponent(address);
+    window.open(
+      `https://maps.google.com/?q=${encoded}`,
+      '_blank'
+    );
+  };
+
+  const filteredContacts = contacts.filter(c => {
+    const matchesSearch = (c.name || '').toLowerCase().includes(search.toLowerCase()) || 
+      (c.specialization || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.phone || '').includes(search) ||
+      (c.email && c.email.toLowerCase().includes(search.toLowerCase()));
+    
+    const matchesSpecialization = !selectedSpecialization || c.specialization === selectedSpecialization;
+    const matchesBrand = !selectedBrand || c.brand === selectedBrand;
+
+    return matchesSearch && matchesSpecialization && matchesBrand;
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -32,15 +56,77 @@ export const ContactsList = ({
         </button>
       </header>
 
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={20} />
-        <input 
-          type="text" 
-          placeholder="Hľadať v kontaktoch..." 
-          className="input-field pl-12"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={20} />
+          <input 
+            type="text" 
+            placeholder="Hľadať v kontaktoch..." 
+            className="input-field pl-12"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="flex gap-6 px-1">
+          <div className="relative">
+            <button 
+              onClick={() => setOpenDropdown(openDropdown === 'specialization' ? null : 'specialization')}
+              className={`flex items-center gap-1.5 text-sm cursor-pointer transition-colors ${selectedSpecialization ? 'text-white/90 font-bold' : 'text-white/60 hover:text-white/80'}`}
+            >
+              {selectedSpecialization || 'Špecializácia'} 
+              {openDropdown === 'specialization' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            {openDropdown === 'specialization' && (
+              <div className="absolute z-20 mt-2 w-56 bg-[#1E1E1E] border border-white/10 rounded-xl shadow-2xl py-2 animate-in fade-in zoom-in duration-200">
+                {uniqueSpecializations.map(spec => (
+                  <button
+                    key={spec}
+                    onClick={() => {
+                      setSelectedSpecialization(selectedSpecialization === spec ? null : spec);
+                      setOpenDropdown(null);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 transition-colors ${selectedSpecialization === spec ? 'text-[#3A87AD] font-bold' : 'text-white/60'}`}
+                  >
+                    {spec}
+                  </button>
+                ))}
+                {uniqueSpecializations.length === 0 && (
+                  <div className="px-4 py-2 text-xs text-white/20 italic">Žiadne hodnoty</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <button 
+              onClick={() => setOpenDropdown(openDropdown === 'brand' ? null : 'brand')}
+              className={`flex items-center gap-1.5 text-sm cursor-pointer transition-colors ${selectedBrand ? 'text-white/90 font-bold' : 'text-white/60 hover:text-white/80'}`}
+            >
+              {selectedBrand || 'Firma'} 
+              {openDropdown === 'brand' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            {openDropdown === 'brand' && (
+              <div className="absolute z-20 mt-2 w-56 bg-[#1E1E1E] border border-white/10 rounded-xl shadow-2xl py-2 animate-in fade-in zoom-in duration-200">
+                {uniqueBrands.map(brand => (
+                  <button
+                    key={brand}
+                    onClick={() => {
+                      setSelectedBrand(selectedBrand === brand ? null : brand);
+                      setOpenDropdown(null);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 transition-colors ${selectedBrand === brand ? 'text-[#3A87AD] font-bold' : 'text-white/60'}`}
+                  >
+                    {brand}
+                  </button>
+                ))}
+                {uniqueBrands.length === 0 && (
+                  <div className="px-4 py-2 text-xs text-white/20 italic">Žiadne hodnoty</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -59,12 +145,19 @@ export const ContactsList = ({
                   <p className="text-xs text-[#3A87AD] font-medium uppercase tracking-wider">{contact.specialization}</p>
                 </div>
               </div>
-              <button 
-                onClick={() => onEditContact(contact)}
-                className="p-2 text-white/20 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
-              >
-                <PenTool size={16} />
-              </button>
+              <div className="flex flex-col items-end gap-2">
+                {contact.brand && (
+                  <span className="bg-white/10 text-white/70 text-[10px] px-2 py-0.5 rounded-full font-medium">
+                    {contact.brand}
+                  </span>
+                )}
+                <button 
+                  onClick={() => onEditContact(contact)}
+                  className="p-2 text-white/20 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
+                >
+                  <PenTool size={16} />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2 pt-2 border-t border-white/5">
@@ -80,7 +173,13 @@ export const ContactsList = ({
               )}
               {contact.address && (
                 <div className="flex items-start gap-3 text-sm text-white/60">
-                  <MapPin size={16} className="text-white/20 mt-0.5" />
+                  <span 
+                    title="Navigovať"
+                    className="cursor-pointer hover:text-blue-400 transition-colors"
+                    onClick={() => openNavigation(contact.address)}
+                  >
+                    <MapPin size={16} className="text-white/20 mt-0.5" />
+                  </span>
                   <span>{contact.address}</span>
                 </div>
               )}

@@ -60,7 +60,7 @@ export const DashboardCharts = ({ boilers }: DashboardChartsProps) => {
       <div className="card p-6 space-y-4">
         <h3 className="font-bold text-white/60 text-sm uppercase tracking-widest">Distribúcia značiek</h3>
         <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <PieChart>
               <Pie
                 data={brandData}
@@ -101,7 +101,7 @@ export const DashboardCharts = ({ boilers }: DashboardChartsProps) => {
       <div className="card p-6 space-y-4">
         <h3 className="font-bold text-white/60 text-sm uppercase tracking-widest">Stav servisov</h3>
         <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <BarChart data={serviceStatusData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
               <XAxis 

@@ -220,7 +220,6 @@ export default function App() {
   const [scanning, setScanning] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const lastScrollY = useRef(0);
 
   // Scroll to hide sidebar logic
@@ -563,6 +562,12 @@ export default function App() {
             onSubmit={handleServiceSubmit}
           />
         );
+      case 'settings':
+        return (
+          <Settings 
+            onBackgroundUpdate={(url) => setBackgroundUrl(url)}
+          />
+        );
       default:
         return null;
     }
@@ -586,7 +591,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div 
-        className="min-h-screen flex flex-col md:flex-row bg-[#0A0A0A] relative overflow-hidden"
+        className="min-h-screen flex flex-col bg-[#0A0A0A] relative overflow-hidden w-full"
         style={{
           backgroundImage: `url(${backgroundUrl || BG_URL})`,
           backgroundSize: 'cover',
@@ -600,10 +605,9 @@ export default function App() {
           activeTab={activeTab === 'customerDetail' || activeTab === 'serviceForm' ? 'customers' : activeTab} 
           setActiveTab={setActiveTab} 
           isVisible={shouldShowSidebar}
-          onOpenSettings={() => setIsSettingsOpen(true)}
         />
         
-        <main className="flex-1 p-4 sm:p-6 md:p-10 lg:pt-10 pb-24 md:pb-10 max-w-5xl mx-auto w-full overflow-y-auto relative z-10">
+        <main className="flex-1 p-4 sm:p-6 pb-24 max-w-5xl mx-auto w-full overflow-y-auto relative z-10">
           <AnimatePresence mode="wait">
           <motion.div
             key={activeTab + (selectedCustomerId || '') + (activeServiceBoilerId || '')}
@@ -668,14 +672,6 @@ export default function App() {
           />
         )}
 
-        {/* Settings Modal */}
-        {isSettingsOpen && (
-          <Settings 
-            onClose={() => setIsSettingsOpen(false)} 
-            onBackgroundUpdate={(url) => setBackgroundUrl(url)}
-          />
-        )}
-
         {/* Boiler Detail Modal */}
         {selectedBoilerId && (
           <BoilerDetailModal 
@@ -731,6 +727,7 @@ export default function App() {
           onUpdate={handleUpdateContact}
           onDelete={handleDeleteContact}
           editingContact={editingContactId ? data.contacts.find(c => c.id === editingContactId) || null : null}
+          contacts={data.contacts}
         />
 
         {/* Delete Confirmation Modal */}

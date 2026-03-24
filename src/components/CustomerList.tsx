@@ -88,6 +88,15 @@ export const CustomerList = ({
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="card p-6 flex flex-col justify-center items-center text-center min-h-[120px]">
+          <p className="text-base font-bold text-white/40 uppercase tracking-wider mb-1">Celkový počet zákazníkov</p>
+          <p className="text-5xl font-bold text-[#3A87AD]">{customers.length}</p>
+          <div className="mt-4 flex items-center gap-2 text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full text-sm font-bold">
+            <TrendingUp size={14} />
+            <span>Aktívne rastúce</span>
+          </div>
+        </div>
+
         <div className="card p-6 lg:col-span-2">
           <div className="flex justify-between items-start mb-4">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -95,8 +104,8 @@ export const CustomerList = ({
               Prírastok zákazníkov (12m)
             </h2>
           </div>
-          <div className="h-[200px] sm:h-[150px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={customerTrendData}>
                 <defs>
                   <linearGradient id="colorCust" x1="0" y1="0" x2="0" y2="1">
@@ -128,14 +137,6 @@ export const CustomerList = ({
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="card p-6 flex flex-col justify-center items-center text-center min-h-[120px]">
-          <p className="text-base font-bold text-white/40 uppercase tracking-wider mb-1">Celkový počet zákazníkov</p>
-          <p className="text-5xl font-bold text-[#3A87AD]">{customers.length}</p>
-          <div className="mt-4 flex items-center gap-2 text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full text-sm font-bold">
-            <TrendingUp size={14} />
-            <span>Aktívne rastúce</span>
-          </div>
-        </div>
       </div>
 
       <div className="relative">
@@ -152,6 +153,14 @@ export const CustomerList = ({
       <div className="grid grid-cols-1 gap-3">
         {filteredCustomers.map(customer => {
           const customerBoilers = boilers.filter(b => b.customerId === customer.id);
+          
+          const mostUrgentBoiler = customerBoilers.length > 0 
+            ? [...customerBoilers].sort((a, b) => {
+                if (!a.nextServiceDate) return 1;
+                if (!b.nextServiceDate) return -1;
+                return new Date(a.nextServiceDate).getTime() - new Date(b.nextServiceDate).getTime();
+              })[0]
+            : null;
           
           return (
             <div 
@@ -197,7 +206,23 @@ export const CustomerList = ({
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-4 ml-auto">
+                {mostUrgentBoiler && (
+                  <div className="flex flex-col items-end flex-shrink-0">
+                    <span 
+                      className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-1"
+                      style={{ 
+                        backgroundColor: `${getStatusColor(getBoilerStatus(mostUrgentBoiler.nextServiceDate))}20`, 
+                        color: getStatusColor(getBoilerStatus(mostUrgentBoiler.nextServiceDate)) 
+                      }}
+                    >
+                      {getStatusLabel(getBoilerStatus(mostUrgentBoiler.nextServiceDate))}
+                    </span>
+                    <span className="text-xs font-bold text-white/60">
+                      {mostUrgentBoiler.nextServiceDate ? new Date(mostUrgentBoiler.nextServiceDate).toLocaleDateString('sk-SK') : '-'}
+                    </span>
+                  </div>
+                )}
                 <ChevronRight size={20} className="text-white/20 group-hover:text-[#3A87AD]" />
               </div>
             </div>

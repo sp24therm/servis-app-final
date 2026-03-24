@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Trash2, ChevronDown } from 'lucide-react';
 import { Contact } from '../types';
+import { AddressSearch } from './AddressSearch';
 
 interface ContactModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface ContactModalProps {
   onUpdate: (id: string, contact: Partial<Contact>) => void;
   onDelete: (id: string) => void;
   editingContact: Contact | null;
+  contacts: Contact[];
 }
 
 export const ContactModal = ({ 
@@ -18,9 +20,48 @@ export const ContactModal = ({
   onAdd, 
   onUpdate,
   onDelete,
-  editingContact
+  editingContact,
+  contacts
 }: ContactModalProps) => {
-  const [contact, setContact] = useState({ name: '', specialization: '', phone: '', email: '', address: '', notes: '' });
+  const [contact, setContact] = useState({ 
+    name: '', 
+    specialization: '', 
+    brand: '',
+    phone: '', 
+    email: '', 
+    address: '', 
+    notes: '' 
+  });
+
+  // Dropdown states
+  const [showSpecDropdown, setShowSpecDropdown] = useState(false);
+  const [showBrandDropdown, setShowBrandDropdown] = useState(false);
+  const specRef = useRef<HTMLDivElement>(null);
+  const brandRef = useRef<HTMLDivElement>(null);
+
+  // Suggestions
+  const specSuggestions = Array.from(new Set(contacts.map(c => c.specialization).filter(Boolean))) as string[];
+  const brandSuggestions = Array.from(new Set(contacts.map(c => c.brand).filter(Boolean))) as string[];
+
+  const filteredSpecs = specSuggestions.filter(s => 
+    s.toLowerCase().includes(contact.specialization.toLowerCase())
+  );
+  const filteredBrands = brandSuggestions.filter(b => 
+    b.toLowerCase().includes(contact.brand.toLowerCase())
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (specRef.current && !specRef.current.contains(event.target as Node)) {
+        setShowSpecDropdown(false);
+      }
+      if (brandRef.current && !brandRef.current.contains(event.target as Node)) {
+        setShowBrandDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -28,13 +69,14 @@ export const ContactModal = ({
         setContact({
           name: editingContact.name,
           specialization: editingContact.specialization || '',
+          brand: editingContact.brand || '',
           phone: editingContact.phone,
           email: editingContact.email || '',
           address: editingContact.address || '',
           notes: editingContact.notes || ''
         });
       } else {
-        setContact({ name: '', specialization: '', phone: '', email: '', address: '', notes: '' });
+        setContact({ name: '', specialization: '', brand: '', phone: '', email: '', address: '', notes: '' });
       }
     }
   }, [isOpen, editingContact]);
@@ -62,7 +104,7 @@ export const ContactModal = ({
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="card w-full max-w-md p-6 relative z-10 overflow-y-auto max-h-[90vh]"
+        className="card w-full max-w-md p-6 relative z-10 overflow-y-auto max-h-[90vh] custom-scrollbar"
       >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-white">
@@ -91,15 +133,123 @@ export const ContactModal = ({
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-bold text-white/70">Špecializácia (značka/odbor)</label>
-            <input 
-              required
-              placeholder="napr. Servisný technik, Predajňa..."
-              className="input-field" 
-              value={contact.specialization}
-              onChange={e => setContact({...contact, specialization: e.target.value})}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1 relative" ref={specRef}>
+              <label className="text-sm font-bold text-white/70">Špecializácia (odbor)</label>
+              <div className="relative">
+                <input 
+                  required
+                  placeholder="napr. Servisný technik..."
+                  className="input-field pr-8" 
+                  value={contact.specialization}
+                  onChange={e => {
+                    setContact({...contact, specialization: e.target.value});
+                    setShowSpecDropdown(true);
+                  }}
+                  onFocus={() => setShowSpecDropdown(true)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSpecDropdown(!showSpecDropdown)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/40"
+                >
+                  <ChevronDown size={14} />
+                </button>
+              </div>
+
+              <AnimatePresence>
+                {showSpecDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="absolute left-0 right-0 top-full mt-1 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto custom-scrollbar"
+                  >
+                    {filteredSpecs.length > 0 ? (
+                      filteredSpecs.map(spec => (
+                        <button
+                          key={spec}
+                          type="button"
+                          onClick={() => {
+                            setContact({...contact, specialization: spec});
+                            setShowSpecDropdown(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+                        >
+                          {spec}
+                        </button>
+                      ))
+                    ) : contact.specialization && (
+                      <button
+                        type="button"
+                        onClick={() => setShowSpecDropdown(false)}
+                        className="w-full text-left px-3 py-2 text-xs text-[#3A87AD] hover:bg-white/5 transition-colors font-medium"
+                      >
+                        Vytvoriť: "{contact.specialization}"
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="space-y-1 relative" ref={brandRef}>
+              <label className="text-sm font-bold text-white/70">Firma / značka</label>
+              <div className="relative">
+                <input 
+                  placeholder="napr. Viessmann..."
+                  className="input-field pr-8" 
+                  value={contact.brand}
+                  onChange={e => {
+                    setContact({...contact, brand: e.target.value});
+                    setShowBrandDropdown(true);
+                  }}
+                  onFocus={() => setShowBrandDropdown(true)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowBrandDropdown(!showBrandDropdown)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/40"
+                >
+                  <ChevronDown size={14} />
+                </button>
+              </div>
+
+              <AnimatePresence>
+                {showBrandDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="absolute left-0 right-0 top-full mt-1 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto custom-scrollbar"
+                  >
+                    {filteredBrands.length > 0 ? (
+                      filteredBrands.map(brand => (
+                        <button
+                          key={brand}
+                          type="button"
+                          onClick={() => {
+                            setContact({...contact, brand: brand});
+                            setShowBrandDropdown(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+                        >
+                          {brand}
+                        </button>
+                      ))
+                    ) : contact.brand && (
+                      <button
+                        type="button"
+                        onClick={() => setShowBrandDropdown(false)}
+                        className="w-full text-left px-3 py-2 text-xs text-[#3A87AD] hover:bg-white/5 transition-colors font-medium"
+                      >
+                        Vytvoriť: "{contact.brand}"
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -125,10 +275,10 @@ export const ContactModal = ({
 
           <div className="space-y-1">
             <label className="text-sm font-bold text-white/70">Adresa</label>
-            <input 
-              className="input-field" 
+            <AddressSearch 
               value={contact.address}
-              onChange={e => setContact({...contact, address: e.target.value})}
+              onChange={addr => setContact({...contact, address: addr})}
+              onSelect={(addr) => setContact({...contact, address: addr})}
             />
           </div>
 

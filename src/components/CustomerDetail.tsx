@@ -57,7 +57,11 @@ export const CustomerDetail = ({
   };
 
   const handleNavigate = (address: string) => {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank');
+    const encoded = encodeURIComponent(address);
+    window.open(
+      `https://maps.google.com/?q=${encoded}`,
+      '_blank'
+    );
   };
 
   return (
@@ -152,24 +156,27 @@ export const CustomerDetail = ({
                       {boiler.address}
                     </p>
                   </div>
-                  <div 
-                    className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                    style={{ backgroundColor: `${statusColor}20`, color: statusColor }}
-                  >
-                    {getStatusLabel(status)}
+                  <div className="flex flex-col items-end flex-shrink-0 ml-auto">
+                    <span 
+                      className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-1"
+                      style={{ backgroundColor: `${statusColor}20`, color: statusColor }}
+                    >
+                      {getStatusLabel(status)}
+                    </span>
+                    <span className="text-xs font-bold text-white/60">
+                      {boiler.nextServiceDate ? new Date(boiler.nextServiceDate).toLocaleDateString('sk-SK') : '-'}
+                    </span>
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 mt-4 p-3 bg-white/5 rounded-2xl border border-white/5">
                   <div>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Posledný</p>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Posledný servis</p>
                     <p className="text-sm font-bold text-white">{boiler.lastServiceDate ? new Date(boiler.lastServiceDate).toLocaleDateString('sk-SK') : '-'}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Nasledujúci</p>
-                    <p className="text-sm font-black" style={{ color: statusColor }}>
-                      {boiler.nextServiceDate ? new Date(boiler.nextServiceDate).toLocaleDateString('sk-SK') : '-'}
-                    </p>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Značka / Model</p>
+                    <p className="text-sm font-bold text-white">{boiler.brand} {boiler.model}</p>
                   </div>
                 </div>
 

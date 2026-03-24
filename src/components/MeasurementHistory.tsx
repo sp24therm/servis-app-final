@@ -17,9 +17,9 @@ export const MeasurementHistory = ({ services }: { services: ServiceRecord[] }) 
 
   return (
     <div className="space-y-6 p-4 bg-black/20 rounded-2xl border border-white/5">
-      <div className="h-48">
+      <div className="h-[300px] w-full">
         <p className="text-[10px] font-bold text-white/40 uppercase mb-2 tracking-widest">CO2 (%) & Účinnosť (%)</p>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
             <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} />
@@ -34,9 +34,9 @@ export const MeasurementHistory = ({ services }: { services: ServiceRecord[] }) 
         </ResponsiveContainer>
       </div>
       
-      <div className="h-48">
+      <div className="h-[300px] w-full">
         <p className="text-[10px] font-bold text-white/40 uppercase mb-2 tracking-widest">CO (ppm) & Tlak (bar)</p>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
             <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" fontSize={10} tickLine={false} axisLine={false} />

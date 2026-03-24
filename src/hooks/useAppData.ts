@@ -13,26 +13,33 @@ import {
   Boiler, 
   ServiceRecord, 
   Contact, 
-  ServiceStatus 
+  ServiceStatus,
+  PriceListItem
 } from '../types';
 import { User } from 'firebase/auth';
+import { seedPriceList } from '../utils/seedPriceList';
 
 export const useAppData = (user: User | null) => {
   const [data, setData] = useState<{
     customers: Customer[],
     boilers: Boiler[],
     services: ServiceRecord[],
-    contacts: Contact[]
+    contacts: Contact[],
+    priceList: PriceListItem[]
   }>({
     customers: [],
     boilers: [],
     services: [],
-    contacts: []
+    contacts: [],
+    priceList: []
   });
 
   // Firestore Listeners
   useEffect(() => {
     if (!user) return;
+
+    // Seed price list if empty
+    seedPriceList();
 
     const unsubCustomers = onSnapshot(collection(db, 'customers'), (snapshot) => {
       const customers = snapshot.docs.map(doc => doc.data() as Customer);
@@ -54,11 +61,17 @@ export const useAppData = (user: User | null) => {
       setData(prev => ({ ...prev, contacts }));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'contacts'));
 
+    const unsubPriceList = onSnapshot(collection(db, 'priceList'), (snapshot) => {
+      const priceList = snapshot.docs.map(doc => doc.data() as PriceListItem);
+      setData(prev => ({ ...prev, priceList }));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'priceList'));
+
     return () => {
       unsubCustomers();
       unsubBoilers();
       unsubServices();
       unsubContacts();
+      unsubPriceList();
     };
   }, [user]);
 

@@ -57,15 +57,25 @@ export const ServicesList = ({
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card p-6 flex flex-col justify-center items-center text-center">
+          <p className="text-sm font-bold text-white/40 uppercase tracking-wider mb-1">Celkový počet zásahov</p>
+          <p className="text-5xl font-bold text-[#3A87AD]">{services.length}</p>
+          <div className={`mt-4 flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${diff >= 0 ? 'text-emerald-500 bg-emerald-500/10' : 'text-[#C14F4F] bg-[#C14F4F]/10'}`}>
+            <TrendingUp size={14} className={diff < 0 ? 'rotate-180' : ''} />
+            <span>{diff >= 0 ? '+' : ''}{percentChange}% oproti min. mesiacu</span>
+          </div>
+        </div>
+
         <div className="card p-6 md:col-span-2">
           <div className="flex justify-between items-start mb-4">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <TrendingUp size={20} className="text-[#3A87AD]" />
               Počet zásahov (12m)
             </h2>
+            <span className="text-xs font-medium text-white/40">Ø {Math.round(services.length / 12)}/mes.</span>
           </div>
-          <div className="h-[150px] w-full">
-            <ResponsiveContainer width="100%" height={150}>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <AreaChart data={trendData}>
                 <defs>
                   <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
@@ -97,16 +107,7 @@ export const ServicesList = ({
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="card p-6 flex flex-col justify-center items-center text-center">
-          <p className="text-sm font-bold text-white/40 uppercase tracking-wider mb-1">Celkový počet zásahov</p>
-          <p className="text-5xl font-bold text-[#3A87AD]">{services.length}</p>
-          <div className={`mt-4 flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${diff >= 0 ? 'text-emerald-500 bg-emerald-500/10' : 'text-[#C14F4F] bg-[#C14F4F]/10'}`}>
-            <TrendingUp size={14} className={diff < 0 ? 'rotate-180' : ''} />
-            <span>{diff >= 0 ? '+' : ''}{percentChange}% oproti min. mesiacu</span>
-          </div>
-        </div>
       </div>
-
       <div className="space-y-3">
         {sortedServices.map(service => {
           const boiler = boilers.find(b => b.id === service.boilerId);

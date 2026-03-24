@@ -20,7 +20,6 @@ export const AddressSearch = ({
   useEffect(() => {
     if (value.length < 3 || ignoreNext) {
       setResults([]);
-      if (ignoreNext) setIgnoreNext(false);
       return;
     }
 
