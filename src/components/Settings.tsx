@@ -3,8 +3,9 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db, uploadFile, handleFirestoreError, OperationType } from '../firebase';
 import { compressImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'motion/react';
-import { Image as ImageIcon, Check, Loader2, X, Euro, ChevronRight } from 'lucide-react';
+import { Image as ImageIcon, Check, Loader2, X, Euro, ChevronRight, Building2, Save } from 'lucide-react';
 import { PriceListEditor } from './PriceListEditor';
+import { useCompanyInfo, CompanyInfo } from '../hooks/useCompanyInfo';
 
 interface SettingsProps {
   onBackgroundUpdate: (url: string) => void;
@@ -14,6 +15,29 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isPriceListExpanded, setIsPriceListExpanded] = useState(false);
+  const [isCompanyExpanded, setIsCompanyExpanded] = useState(false);
+  const { companyInfo, saveCompanyInfo, loading: companyLoading } = useCompanyInfo();
+  const [localCompanyInfo, setLocalCompanyInfo] = useState<CompanyInfo>(companyInfo);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
+
+  useEffect(() => {
+    if (companyInfo) {
+      setLocalCompanyInfo(companyInfo);
+    }
+  }, [companyInfo]);
+
+  const handleCompanySave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaveStatus('saving');
+    try {
+      await saveCompanyInfo(localCompanyInfo);
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Error saving company info:', error);
+      setSaveStatus('idle');
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -131,6 +155,161 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                 >
                   <div className="p-1 pt-2">
                     <PriceListEditor />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+
+          {/* Company Info Section */}
+          <section className="space-y-4 pt-4 border-t border-white/5">
+            <button 
+              onClick={() => setIsCompanyExpanded(!isCompanyExpanded)}
+              className="w-full flex items-center justify-between text-white/80 hover:text-white transition-colors group"
+            >
+              <div className="flex items-center gap-2">
+                <Building2 size={20} className="text-[#3A87AD]" />
+                <h3 className="text-lg font-bold">Firemné údaje</h3>
+              </div>
+              <ChevronRight 
+                size={20} 
+                className={`text-white/20 group-hover:text-white/40 transition-transform duration-300 ${isCompanyExpanded ? 'rotate-90' : ''}`} 
+              />
+            </button>
+            
+            <AnimatePresence>
+              {isCompanyExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-1 pt-2">
+                    {companyLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="animate-spin text-[#3A87AD]" size={24} />
+                      </div>
+                    ) : (
+                      <form onSubmit={handleCompanySave} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Názov firmy</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              value={localCompanyInfo.name}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, name: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">IČO</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              value={localCompanyInfo.ico}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, ico: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">DIČ</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              value={localCompanyInfo.dic}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, dic: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">IČ DPH</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              value={localCompanyInfo.icDph}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, icDph: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Ulica</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              value={localCompanyInfo.street}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, street: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Mesto</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              value={localCompanyInfo.city}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, city: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">PSČ</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              value={localCompanyInfo.zip}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, zip: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Telefón</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              value={localCompanyInfo.phone}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, phone: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Email</label>
+                            <input 
+                              type="email" 
+                              className="input-field" 
+                              value={localCompanyInfo.email}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, email: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">IBAN</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              value={localCompanyInfo.iban}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, iban: e.target.value})}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end pt-4">
+                          <button 
+                            type="submit" 
+                            disabled={saveStatus === 'saving'}
+                            className={`btn-primary min-w-[140px] justify-center ${saveStatus === 'success' ? 'bg-green-600 hover:bg-green-600' : ''}`}
+                          >
+                            {saveStatus === 'saving' ? (
+                              <>
+                                <Loader2 className="animate-spin" size={18} />
+                                <span>Ukladám...</span>
+                              </>
+                            ) : saveStatus === 'success' ? (
+                              <>
+                                <Check size={18} />
+                                <span>Uložené ✓</span>
+                              </>
+                            ) : (
+                              <>
+                                <Save size={18} />
+                                <span>Uložiť</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </div>
                 </motion.div>
               )}

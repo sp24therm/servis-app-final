@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Phone, 
   MapPin, 
@@ -32,7 +32,7 @@ interface CustomerDetailProps {
   setSelectedBoilerId: (id: string) => void;
 }
 
-export const CustomerDetail = ({ 
+export const CustomerDetail = React.memo(({ 
   customer, 
   boilers, 
   services, 
@@ -47,6 +47,18 @@ export const CustomerDetail = ({
   const customerBoilers = boilers.filter(b => b.customerId === customer.id);
   const [expandedBoilers, setExpandedBoilers] = useState<Record<string, boolean>>({});
   const [showHistory, setShowHistory] = useState<Record<string, boolean>>({});
+
+  const mapCenter = useMemo<[number, number]>(() => 
+    customerBoilers.length > 0 && customerBoilers[0].lat 
+      ? [customerBoilers[0].lat, customerBoilers[0].lng!] 
+      : [48.6690, 19.6990], 
+    [customerBoilers]
+  );
+
+  const mapZoom = useMemo(() => 
+    customerBoilers.length > 0 ? 12 : 7, 
+    [customerBoilers]
+  );
 
   const toggleExpand = (boilerId: string) => {
     setExpandedBoilers(prev => ({ ...prev, [boilerId]: !prev[boilerId] }));
@@ -344,14 +356,17 @@ export const CustomerDetail = ({
         </div>
         <div className="h-[300px] w-full relative z-0">
           <MapContainer 
-            center={customerBoilers.length > 0 && customerBoilers[0].lat ? [customerBoilers[0].lat, customerBoilers[0].lng!] : [48.6690, 19.6990]} 
-            zoom={customerBoilers.length > 0 ? 12 : 7} 
+            key={`customer-map-${customer.id}`}
+            center={mapCenter} 
+            zoom={mapZoom} 
             style={{ height: '100%', width: '100%' }}
             className="dark-map"
           >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              maxZoom={19}
+              keepBuffer={2}
             />
             {customerBoilers.filter(b => b.lat && b.lng).map(boiler => (
               <Marker key={boiler.id} position={[boiler.lat!, boiler.lng!]}>
@@ -368,4 +383,4 @@ export const CustomerDetail = ({
       </div>
     </div>
   );
-};
+});

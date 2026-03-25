@@ -1,0 +1,22 @@
+{
+  "name": "SP Therm Servis",
+  "short_name": "SP Therm",
+  "description": "Servisná aplikácia SP Therm s.r.o.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0463998550.firebasestorage.app/o/public%2Flogo.png?alt=media&token=41ca22c4-cbbc-4b1b-9ba1-7b178e3baef5",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0463998550.firebasestorage.app/o/public%2Flogo.png?alt=media&token=41ca22c4-cbbc-4b1b-9ba1-7b178e3baef5",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

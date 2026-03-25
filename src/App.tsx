@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useRef, Component } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Component, lazy, Suspense } from 'react';
 import { 
   LayoutDashboard, 
   Users, 
@@ -67,8 +67,6 @@ import { ServicesList } from './components/ServicesList';
 import { CustomerList } from './components/CustomerList';
 import { CustomerModal } from './components/CustomerModal';
 import { ServiceDetailModal } from './components/ServiceDetailModal';
-import { CustomerDetail } from './components/CustomerDetail';
-import { ServiceForm } from './components/ServiceForm';
 import { BoilerFormFields } from './components/BoilerFormFields';
 import { BG_URL } from './config/constants';
 
@@ -179,9 +177,11 @@ L.Icon.Default.mergeOptions({
 
 // --- Components ---
 
-// --- Main App ---
+const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const CustomerDetail = lazy(() => import('./components/CustomerDetail').then(m => ({ default: m.CustomerDetail })));
+const ServiceForm = lazy(() => import('./components/ServiceForm').then(m => ({ default: m.ServiceForm })));
 
-import { Dashboard } from './components/Dashboard';
+// --- Main App ---
 import { useAuth } from './hooks/useAuth';
 
 export default function App() {
@@ -221,6 +221,21 @@ export default function App() {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
   const lastScrollY = useRef(0);
+
+  const [isOnline, setIsOnline] = useState(
+    navigator.onLine
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Scroll to hide sidebar logic
   useEffect(() => {
@@ -601,6 +616,15 @@ export default function App() {
       >
         <div className="absolute inset-0 bg-black/50 pointer-events-none" />
         
+        {!isOnline && (
+          <div className="fixed top-0 left-0 right-0 
+            bg-yellow-600/90 text-white text-center 
+            text-xs py-1 z-[200]">
+            Offline režim — dáta sa synchronizujú 
+            po obnovení spojenia
+          </div>
+        )}
+
         <Sidebar 
           activeTab={activeTab === 'customerDetail' || activeTab === 'serviceForm' ? 'customers' : activeTab} 
           setActiveTab={setActiveTab} 
@@ -616,7 +640,16 @@ export default function App() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {renderContent()}
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-full min-h-[400px]">
+                <div className="text-white/50 flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 border-2 border-[#3A87AD] border-t-transparent rounded-full animate-spin"></div>
+                  Načítavam...
+                </div>
+              </div>
+            }>
+              {renderContent()}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
 

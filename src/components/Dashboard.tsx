@@ -30,7 +30,7 @@ interface DashboardProps {
   onSelectCustomer: (id: string) => void;
 }
 
-export const Dashboard = ({ 
+export const Dashboard = React.memo(({ 
   boilers, 
   customers, 
   services,
@@ -40,6 +40,9 @@ export const Dashboard = ({
   const [activeFilter, setActiveFilter] = useState<BoilerStatus | null>(null);
   const [showAllOverdue, setShowAllOverdue] = useState(false);
   
+  const mapCenter = useMemo<[number, number]>(() => [48.6690, 19.6990], []);
+  const mapZoom = 7;
+
   const openNavigation = (address: string) => {
     const encoded = encodeURIComponent(address);
     window.open(
@@ -405,10 +408,18 @@ export const Dashboard = ({
           </h2>
         </div>
         <div className="h-[350px] w-full relative z-0">
-          <MapContainer center={[48.6690, 19.6990]} zoom={7} style={{ height: '100%', width: '100%' }} className="dark-map">
+          <MapContainer 
+            key="dashboard-map"
+            center={mapCenter} 
+            zoom={mapZoom} 
+            style={{ height: '100%', width: '100%' }} 
+            className="dark-map"
+          >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              maxZoom={19}
+              keepBuffer={2}
             />
             <MapBounds boilers={boilers} />
             {boilers.filter(b => b.lat && b.lng).map(boiler => (
@@ -441,4 +452,4 @@ export const Dashboard = ({
       </div>
     </div>
   );
-};
+});

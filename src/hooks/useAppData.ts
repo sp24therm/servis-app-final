@@ -88,20 +88,35 @@ export const useAppData = (user: User | null) => {
         await updateDoc(serviceRef, cleanServiceData);
 
         if (serviceData.date) {
-          const nextDate = new Date(serviceData.date);
-          nextDate.setFullYear(nextDate.getFullYear() + 1);
-          
           const boilerRef = doc(db, 'boilers', activeServiceBoilerId);
-          const boilerUpdate: any = {
-            lastServiceDate: serviceData.date,
-            nextServiceDate: nextDate.toISOString().split('T')[0]
-          };
+          const boilerUpdate: any = {};
 
-          if (serviceData.taskPerformed === 'Inštalácia' && (serviceData as any).useAsInstallDate) {
-            boilerUpdate.installDate = serviceData.date;
+          // BUG B: Logic for lastServiceDate and nextServiceDate
+          const existingService = data.services.find(s => s.id === editingServiceId);
+          const task = serviceData.taskPerformed || existingService?.taskPerformed;
+          
+          const boilerServices = data.services.filter(s => s.boilerId === activeServiceBoilerId && s.id !== editingServiceId);
+          
+          if (task === 'Ročná prehliadka') {
+            boilerUpdate.lastServiceDate = serviceData.date;
+            const nextDate = new Date(serviceData.date);
+            nextDate.setFullYear(nextDate.getFullYear() + 1);
+            boilerUpdate.nextServiceDate = nextDate.toISOString().split('T')[0];
+          } else if (task === 'Inštalácia') {
+            // nextServiceDate changes only on first record
+            if (boilerServices.length === 0) {
+              const nextDate = new Date(serviceData.date);
+              nextDate.setFullYear(nextDate.getFullYear() + 1);
+              boilerUpdate.nextServiceDate = nextDate.toISOString().split('T')[0];
+            }
+            if ((serviceData as any).useAsInstallDate) {
+              boilerUpdate.installDate = serviceData.date;
+            }
           }
 
-          await updateDoc(boilerRef, boilerUpdate);
+          if (Object.keys(boilerUpdate).length > 0) {
+            await updateDoc(boilerRef, boilerUpdate);
+          }
         }
       } else {
         const serviceId = `s${Date.now()}`;
@@ -118,20 +133,33 @@ export const useAppData = (user: User | null) => {
 
         await setDoc(doc(db, 'services', serviceId), newService);
 
-        const nextDate = new Date(newService.date);
-        nextDate.setFullYear(nextDate.getFullYear() + 1);
-        
         const boilerRef = doc(db, 'boilers', activeServiceBoilerId);
-        const boilerUpdate: any = {
-          lastServiceDate: newService.date,
-          nextServiceDate: nextDate.toISOString().split('T')[0]
-        };
+        const boilerUpdate: any = {};
 
-        if (newService.taskPerformed === 'Inštalácia' && (newService as any).useAsInstallDate) {
-          boilerUpdate.installDate = newService.date;
+        // BUG B: Logic for lastServiceDate and nextServiceDate
+        const task = newService.taskPerformed;
+        const boilerServices = data.services.filter(s => s.boilerId === activeServiceBoilerId);
+        
+        if (task === 'Ročná prehliadka') {
+          boilerUpdate.lastServiceDate = newService.date;
+          const nextDate = new Date(newService.date);
+          nextDate.setFullYear(nextDate.getFullYear() + 1);
+          boilerUpdate.nextServiceDate = nextDate.toISOString().split('T')[0];
+        } else if (task === 'Inštalácia') {
+          // nextServiceDate changes only on first record
+          if (boilerServices.length === 0) {
+            const nextDate = new Date(newService.date);
+            nextDate.setFullYear(nextDate.getFullYear() + 1);
+            boilerUpdate.nextServiceDate = nextDate.toISOString().split('T')[0];
+          }
+          if ((newService as any).useAsInstallDate) {
+            boilerUpdate.installDate = newService.date;
+          }
         }
 
-        await updateDoc(boilerRef, boilerUpdate);
+        if (Object.keys(boilerUpdate).length > 0) {
+          await updateDoc(boilerRef, boilerUpdate);
+        }
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'services');

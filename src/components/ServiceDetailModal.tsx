@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, Download, ArrowLeft, CheckCircle2, AlertCircle, PenTool } from 'lucide-react';
+import { Trash2, Download, ArrowLeft, CheckCircle2, AlertCircle, PenTool, Wrench } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ServiceRecord, Boiler, Customer } from '../types';
 import { generateServicePDF } from '../utils/pdf';
@@ -177,19 +177,80 @@ export const ServiceDetailModal = ({
             </div>
           )}
 
-          {service.photo && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold text-white/40 uppercase">Fotodokumentácia</p>
-              <div className="aspect-video rounded-2xl overflow-hidden border border-white/10">
-                <img src={service.photo} alt="Service" className="w-full h-full object-cover" />
+          {/* Photos Section */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {service.photo && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Hlavná fotografia</p>
+                <div className="aspect-video bg-white/5 rounded-2xl overflow-hidden border border-white/5">
+                  <img src={service.photo} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </div>
+              </div>
+            )}
+            {service.photoBefore && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Pred opravou</p>
+                <div className="aspect-video bg-white/5 rounded-2xl overflow-hidden border border-white/5">
+                  <img src={service.photoBefore} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </div>
+              </div>
+            )}
+            {service.photoAfter && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Po oprave</p>
+                <div className="aspect-video bg-white/5 rounded-2xl overflow-hidden border border-white/5">
+                  <img src={service.photoAfter} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </div>
+              </div>
+            )}
+            {service.photoBoiler && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Kotol (Inštalácia)</p>
+                <div className="aspect-video bg-white/5 rounded-2xl overflow-hidden border border-white/5">
+                  <img src={service.photoBoiler} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </div>
+              </div>
+            )}
+            {service.photoConnection && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Napojenie (Inštalácia)</p>
+                <div className="aspect-video bg-white/5 rounded-2xl overflow-hidden border border-white/5">
+                  <img src={service.photoConnection} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </div>
+              </div>
+            )}
+            {service.photoChimney && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Komín (Inštalácia)</p>
+                <div className="aspect-video bg-white/5 rounded-2xl overflow-hidden border border-white/5">
+                  <img src={service.photoChimney} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Spare Parts Section */}
+          {service.spareParts && service.spareParts.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Wrench size={20} className="text-[#3A87AD]" />
+                Použité náhradné diely
+              </h3>
+              <div className="grid grid-cols-1 gap-2">
+                {service.spareParts.map((part, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/5">
+                    <span className="text-white font-medium">{part.name}</span>
+                    <span className="text-[#3A87AD] font-bold">x{part.quantity}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
           {service.signature && (
             <div className="space-y-2">
-              <p className="text-[10px] font-bold text-white/40 uppercase">Podpis zákazníka</p>
-              <div className="aspect-video bg-white p-4 rounded-2xl border border-white/10 flex items-center justify-center">
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Podpis zákazníka</p>
+              <div className="aspect-video bg-white p-4 rounded-2xl border border-white/5 flex items-center justify-center">
                 <img src={service.signature} alt="Signature" className="max-w-full max-h-full object-contain mix-blend-multiply" />
               </div>
             </div>

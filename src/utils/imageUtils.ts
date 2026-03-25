@@ -1,7 +1,7 @@
 export const compressImage = (
   file: File,
-  maxSize: number = 1920,
-  quality: number = 0.7
+  maxSize: number = 1200,
+  quality: number = 0.6
 ): Promise<Blob> => {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
@@ -23,8 +23,8 @@ export const compressImage = (
       ctx.drawImage(img, 0, 0, width, height);
       canvas.toBlob(
         (blob) => resolve(blob!),
-        'image/jpeg',
-        quality
+        'image/webp',
+        0.6
       );
     };
     img.src = URL.createObjectURL(file);

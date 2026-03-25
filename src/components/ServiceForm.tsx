@@ -303,25 +303,27 @@ export const ServiceForm = ({
               {formData.showSpareParts && (
                 <div className="p-4 space-y-4 bg-black/20">
                   {formData.spareParts.map((part, index) => (
-                    <div key={index} className="flex gap-2">
+                    <div key={index} className="flex flex-row gap-2 items-center">
                       <input 
-                        className="input-field flex-1" 
+                        className="input-field flex-1 !w-auto text-white" 
                         placeholder="Názov dielu" 
                         value={part.name}
                         onChange={e => {
-                          const newParts = [...formData.spareParts];
-                          newParts[index].name = e.target.value;
+                          const newParts = formData.spareParts.map((p, i) => 
+                            i === index ? { ...p, name: e.target.value } : p
+                          );
                           setFormData({...formData, spareParts: newParts});
                         }}
                       />
                       <input 
                         type="number" 
-                        className="input-field w-20" 
+                        className="input-field !w-20 text-white" 
                         placeholder="Ks" 
                         value={part.quantity}
                         onChange={e => {
-                          const newParts = [...formData.spareParts];
-                          newParts[index].quantity = parseInt(e.target.value) || 0;
+                          const newParts = formData.spareParts.map((p, i) => 
+                            i === index ? { ...p, quantity: parseInt(e.target.value) || 0 } : p
+                          );
                           setFormData({...formData, spareParts: newParts});
                         }}
                       />
