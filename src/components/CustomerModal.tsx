@@ -30,7 +30,14 @@ export const CustomerModal = ({
   setIsScannerOpen
 }: CustomerModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
-  const [newCustomer, setNewCustomer] = useState({ name: '', company: '', phone: '', email: '', notes: '' });
+  const [newCustomer, setNewCustomer] = useState({ 
+    name: '', 
+    company: '', 
+    phone: '', 
+    email: '', 
+    notes: '',
+    secondaryContact: { name: '', phone: '' }
+  });
   const [addBoiler, setAddBoiler] = useState(true);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const [newBoiler, setNewBoiler] = useState({
@@ -60,11 +67,19 @@ export const CustomerModal = ({
           company: editingCustomer.company || '',
           phone: editingCustomer.phone,
           email: editingCustomer.email || '',
-          notes: editingCustomer.notes || ''
+          notes: editingCustomer.notes || '',
+          secondaryContact: editingCustomer.secondaryContact || { name: '', phone: '' }
         });
         setAddBoiler(false);
       } else {
-        setNewCustomer({ name: '', company: '', phone: '', email: '', notes: '' });
+        setNewCustomer({ 
+          name: '', 
+          company: '', 
+          phone: '', 
+          email: '', 
+          notes: '',
+          secondaryContact: { name: '', phone: '' }
+        });
         setAddBoiler(false);
         setNewBoiler({
           name: 'Hlavný kotol',
@@ -182,6 +197,37 @@ export const CustomerModal = ({
                 value={newCustomer.email}
                 onChange={e => setNewCustomer({...newCustomer, email: e.target.value})}
               />
+            </div>
+          </div>
+
+          <div className="p-4 bg-white/5 rounded-2xl space-y-4 border border-white/5">
+            <h3 className="text-sm font-bold text-[#3A87AD] uppercase tracking-wider">Pomocný kontakt (voliteľné)</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-bold text-white/70">Meno pomocného kontaktu</label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  value={newCustomer.secondaryContact.name}
+                  onChange={e => setNewCustomer({
+                    ...newCustomer, 
+                    secondaryContact: { ...newCustomer.secondaryContact, name: e.target.value }
+                  })}
+                  placeholder="napr. Manželka, Správca..."
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-bold text-white/70">Telefón pomocného kontaktu</label>
+                <input 
+                  type="tel" 
+                  className="input-field" 
+                  value={newCustomer.secondaryContact.phone}
+                  onChange={e => setNewCustomer({
+                    ...newCustomer, 
+                    secondaryContact: { ...newCustomer.secondaryContact, phone: e.target.value }
+                  })}
+                />
+              </div>
             </div>
           </div>
 

@@ -180,6 +180,7 @@ L.Icon.Default.mergeOptions({
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
 const CustomerDetail = lazy(() => import('./components/CustomerDetail').then(m => ({ default: m.CustomerDetail })));
 const ServiceForm = lazy(() => import('./components/ServiceForm').then(m => ({ default: m.ServiceForm })));
+const NewBookings = lazy(() => import('./components/NewBookings').then(m => ({ default: m.NewBookings })));
 
 // --- Main App ---
 import { useAuth } from './hooks/useAuth';
@@ -505,6 +506,8 @@ export default function App() {
             onSelectCustomer={handleSelectCustomer} 
           />
         );
+      case 'bookings':
+        return <NewBookings />;
       case 'customers':
         return (
           <CustomerList 

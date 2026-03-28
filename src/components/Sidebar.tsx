@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Users, History, Phone, Settings as SettingsIcon, LogOut, User as UserIcon, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Users, History, Phone, Settings as SettingsIcon, LogOut, User as UserIcon, ChevronDown, Inbox } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
@@ -43,6 +43,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isVisible }: SidebarProps) =>
 
   const menuItems = [
     { id: 'dashboard', label: 'Prehľad', icon: LayoutDashboard },
+    { id: 'bookings', label: 'Objednávky', icon: Inbox },
     { id: 'customers', label: 'Zákazníci', icon: Users },
     { id: 'services', label: 'Zásahy', icon: History },
     { id: 'contacts', label: 'Kontakty', icon: Phone },

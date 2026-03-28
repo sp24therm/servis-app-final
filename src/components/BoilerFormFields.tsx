@@ -202,6 +202,31 @@ export const BoilerFormFields = ({
         </div>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <label className="text-sm font-bold text-white/70">Výkon (kW)</label>
+            <input 
+              type="text" 
+              className="input-field" 
+              placeholder="napr. 24"
+              value={boilerData.power || ''}
+              onChange={e => setBoilerData({...boilerData, power: e.target.value})}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-bold text-white/70">Palivo</label>
+            <input 
+              type="text" 
+              className="input-field" 
+              placeholder="napr. Plyn"
+              value={boilerData.fuel || ''}
+              onChange={e => setBoilerData({...boilerData, fuel: e.target.value})}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-2">
         <input 
           type="file" 

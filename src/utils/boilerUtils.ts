@@ -2,7 +2,11 @@
 
 export type BoilerStatus = 'dormant' | 'overdue' | 'upcoming' | 'ontime' | 'unscheduled';
 
-export const getBoilerStatus = (nextServiceDate: string | undefined): BoilerStatus => {
+export const getBoilerStatus = (
+  nextServiceDate: string | undefined, 
+  upcomingDays: number = 30, 
+  dormantDays: number = 183
+): BoilerStatus => {
   if (!nextServiceDate) return 'unscheduled';
   
   const today = new Date();
@@ -16,8 +20,8 @@ export const getBoilerStatus = (nextServiceDate: string | undefined): BoilerStat
     const diffTime = today.getTime() - nextDate.getTime();
     const diffDays = diffTime / (1000 * 60 * 60 * 24);
     
-    // Viac ako 6 mesiacov (183 dní)
-    if (diffDays > 183) {
+    // Viac ako dormantDays (predvolene 183 dní)
+    if (diffDays > dormantDays) {
       return 'dormant'; // ZASPÄTÝ
     }
     return 'overdue'; // PO TERMÍNE
@@ -27,7 +31,7 @@ export const getBoilerStatus = (nextServiceDate: string | undefined): BoilerStat
   const diffTimeFuture = nextDate.getTime() - today.getTime();
   const diffDaysFuture = diffTimeFuture / (1000 * 60 * 60 * 24);
   
-  if (diffDaysFuture <= 30) {
+  if (diffDaysFuture <= upcomingDays) {
     return 'upcoming'; // BLÍŽIACE SA
   }
   

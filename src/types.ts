@@ -77,6 +77,8 @@ export interface Boiler {
   };
   lastServiceDate?: string;
   nextServiceDate?: string;
+  power?: string;
+  fuel?: string;
 }
 
 export interface Customer {
@@ -87,6 +89,7 @@ export interface Customer {
   email?: string;
   notes?: string;
   createdAt?: string;
+  secondaryContact?: { name: string; phone: string };
 }
 
 export interface Contact {
@@ -119,4 +122,20 @@ export interface AppState {
   services: ServiceRecord[];
   contacts: Contact[];
   priceList: PriceListItem[];
+}
+
+export interface Booking {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  address: string;
+  boilerBrand: string;
+  boilerModel?: string;
+  serviceType: string;
+  preferredDate: string;
+  preferredTime: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  notes?: string;
+  createdAt: string;
 }

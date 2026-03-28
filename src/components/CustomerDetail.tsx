@@ -11,13 +11,17 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
-  Users
+  Users,
+  User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Customer, Boiler, ServiceRecord } from '../types';
 import { MeasurementHistory } from './MeasurementHistory';
 import { getBoilerStatus, getStatusColor, getStatusLabel } from '../utils/boilerUtils';
+import { BoilerInfoModal } from './BoilerInfoModal';
+import { ImageOverlay } from './ImageOverlay';
+import { useTermSettings } from '../hooks/useTermSettings';
 
 interface CustomerDetailProps {
   customer: Customer;
@@ -45,8 +49,11 @@ export const CustomerDetail = React.memo(({
   setSelectedBoilerId
 }: CustomerDetailProps) => {
   const customerBoilers = boilers.filter(b => b.customerId === customer.id);
-  const [expandedBoilers, setExpandedBoilers] = useState<Record<string, boolean>>({});
   const [showHistory, setShowHistory] = useState<Record<string, boolean>>({});
+  const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+  const [selectedBoilerInfo, setSelectedBoilerInfo] = useState<Boiler | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const { termSettings } = useTermSettings();
 
   const mapCenter = useMemo<[number, number]>(() => 
     customerBoilers.length > 0 && customerBoilers[0].lat 
@@ -60,12 +67,12 @@ export const CustomerDetail = React.memo(({
     [customerBoilers]
   );
 
-  const toggleExpand = (boilerId: string) => {
-    setExpandedBoilers(prev => ({ ...prev, [boilerId]: !prev[boilerId] }));
-  };
-
   const toggleHistory = (boilerId: string) => {
     setShowHistory(prev => ({ ...prev, [boilerId]: !prev[boilerId] }));
+  };
+
+  const toggleHistoryExpand = (boilerId: string) => {
+    setExpandedHistory(prev => ({ ...prev, [boilerId]: !prev[boilerId] }));
   };
 
   const handleNavigate = (address: string) => {
@@ -107,6 +114,16 @@ export const CustomerDetail = React.memo(({
                 <Phone size={22} />
                 {customer.phone}
               </a>
+              {customer.secondaryContact && (
+                <div className="space-y-1 pl-1">
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest ml-8">Pomocný kontakt</p>
+                  <a href={`tel:${customer.secondaryContact.phone}`} className="flex items-center gap-3 text-white/60 hover:text-white transition-colors text-sm min-h-[32px]">
+                    <User size={18} className="ml-1" />
+                    <span className="font-medium">{customer.secondaryContact.name}:</span>
+                    {customer.secondaryContact.phone}
+                  </a>
+                </div>
+              )}
               {customer.email && (
                 <p className="flex items-center gap-3 text-white/80 text-lg">
                   <Info size={22} />
@@ -136,11 +153,11 @@ export const CustomerDetail = React.memo(({
 
         {customerBoilers.map(boiler => {
           const boilerServices = services.filter(s => s.boilerId === boiler.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          const status = getBoilerStatus(boiler.nextServiceDate);
+          const status = getBoilerStatus(boiler.nextServiceDate, termSettings.upcomingDays, termSettings.dormantDays);
           const statusColor = getStatusColor(status);
           
-          const isExpanded = expandedBoilers[boiler.id];
-          const visibleServices = isExpanded ? boilerServices : boilerServices.slice(0, 3);
+          const isHistoryExpanded = expandedHistory[boiler.id];
+          const visibleServices = isHistoryExpanded ? boilerServices : boilerServices.slice(0, 3);
 
           return (
             <div key={boiler.id} className="card p-0 overflow-hidden">
@@ -155,13 +172,6 @@ export const CustomerDetail = React.memo(({
                         title="Navigovať"
                       >
                         <MapPin size={14} />
-                      </button>
-                      <button 
-                        onClick={() => setSelectedBoilerId(boiler.id)}
-                        className="p-1.5 bg-white/5 text-white/40 rounded-lg hover:bg-white/10 hover:text-[#3A87AD] transition-colors"
-                        title="Detail zariadenia"
-                      >
-                        <Info size={14} />
                       </button>
                     </div>
                     <p className="text-xs text-[#3A87AD] font-medium mt-0.5">
@@ -192,49 +202,6 @@ export const CustomerDetail = React.memo(({
                   </div>
                 </div>
 
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div 
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Značka / Model</p>
-                            <p className="text-xs font-medium text-white/80">{boiler.brand} {boiler.model}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Sériové číslo</p>
-                            <p className="text-xs font-medium text-white/80">{boiler.serialNumber}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Dátum montáže</p>
-                            <p className="text-xs font-medium text-white/80">{new Date(boiler.installDate).toLocaleDateString('sk-SK')}</p>
-                          </div>
-                          <div className="flex items-end justify-end">
-                            <button 
-                              onClick={() => onEditBoiler(boiler.id)}
-                              className="flex items-center gap-2 px-3 py-1.5 bg-white/5 text-white/60 rounded-xl text-xs font-bold hover:bg-white/10 hover:text-white transition-colors"
-                            >
-                              <PenTool size={14} />
-                              Upraviť údaje
-                            </button>
-                          </div>
-                        </div>
-                        {boiler.notes && (
-                          <div className="p-3 bg-amber-500/10 rounded-xl text-xs text-amber-500 border border-amber-500/20">
-                            <p className="font-bold uppercase text-[9px] mb-1 opacity-60 tracking-widest">Poznámka k zariadeniu</p>
-                            {boiler.notes}
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
                 <div className="mt-4 flex gap-2">
                   <button 
                     onClick={() => onAddService(boiler.id)}
@@ -244,12 +211,18 @@ export const CustomerDetail = React.memo(({
                     Vykonať servis
                   </button>
                   <button 
-                    onClick={() => toggleExpand(boiler.id)}
-                    className={`p-2.5 rounded-xl border transition-all ${
-                      isExpanded ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-white/10 text-white/40 hover:border-[#3A87AD]/50 hover:text-[#3A87AD]'
-                    }`}
+                    onClick={() => setSelectedBoilerInfo(boiler)}
+                    className="p-2.5 rounded-xl border border-white/10 text-white/40 hover:border-[#3A87AD]/50 hover:text-[#3A87AD] transition-all bg-transparent"
+                    title="Informácie o zariadení"
                   >
                     <Info size={20} />
+                  </button>
+                  <button 
+                    onClick={() => onEditBoiler(boiler.id)}
+                    className="p-2.5 rounded-xl border border-white/10 text-white/40 hover:border-[#3A87AD]/50 hover:text-[#3A87AD] transition-all bg-transparent"
+                    title="Upraviť údaje"
+                  >
+                    <PenTool size={20} />
                   </button>
                 </div>
               </div>
@@ -325,10 +298,10 @@ export const CustomerDetail = React.memo(({
                       
                       {boilerServices.length > 3 && (
                         <button 
-                          onClick={() => toggleExpand(boiler.id)}
+                          onClick={() => toggleHistoryExpand(boiler.id)}
                           className="w-full py-1.5 text-[11px] font-bold text-[#3A87AD] hover:bg-[#3A87AD]/10 rounded-lg transition-colors flex items-center justify-center gap-1"
                         >
-                          {isExpanded ? (
+                          {isHistoryExpanded ? (
                             <>Zobraziť menej</>
                           ) : (
                             <>Zobraziť všetky ({boilerServices.length})</>
@@ -381,6 +354,23 @@ export const CustomerDetail = React.memo(({
           </MapContainer>
         </div>
       </div>
+
+      <AnimatePresence>
+        {selectedBoilerInfo && (
+          <BoilerInfoModal 
+            boiler={selectedBoilerInfo}
+            services={services}
+            onClose={() => setSelectedBoilerInfo(null)}
+            upcomingDays={termSettings.upcomingDays}
+            dormantDays={termSettings.dormantDays}
+          />
+        )}
+      </AnimatePresence>
+
+      <ImageOverlay 
+        src={selectedImage} 
+        onClose={() => setSelectedImage(null)} 
+      />
     </div>
   );
 });
