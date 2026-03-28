@@ -69,6 +69,7 @@ import { CustomerModal } from './components/CustomerModal';
 import { ServiceDetailModal } from './components/ServiceDetailModal';
 import { BoilerFormFields } from './components/BoilerFormFields';
 import { BG_URL } from './config/constants';
+import { Toaster } from 'sonner';
 
 // Fix for default marker icons in Leaflet with Vite
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -180,7 +181,7 @@ L.Icon.Default.mergeOptions({
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
 const CustomerDetail = lazy(() => import('./components/CustomerDetail').then(m => ({ default: m.CustomerDetail })));
 const ServiceForm = lazy(() => import('./components/ServiceForm').then(m => ({ default: m.ServiceForm })));
-const NewBookings = lazy(() => import('./components/NewBookings').then(m => ({ default: m.NewBookings })));
+const BookingsManager = lazy(() => import('./components/BookingsManager').then(m => ({ default: m.BookingsManager })));
 
 // --- Main App ---
 import { useAuth } from './hooks/useAuth';
@@ -507,7 +508,7 @@ export default function App() {
           />
         );
       case 'bookings':
-        return <NewBookings />;
+        return <BookingsManager />;
       case 'customers':
         return (
           <CustomerList 
@@ -788,6 +789,7 @@ export default function App() {
         />
       </main>
     </div>
+    <Toaster position="top-right" richColors />
     </ErrorBoundary>
   );
 }

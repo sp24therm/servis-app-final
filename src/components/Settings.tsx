@@ -3,13 +3,14 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db, uploadFile, handleFirestoreError, OperationType } from '../firebase';
 import { compressImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'motion/react';
-import { Image as ImageIcon, Check, Loader2, X, Euro, ChevronRight, Building2, Save, Clock, Sun, Snowflake, AlertTriangle, Plus, Settings2 } from 'lucide-react';
+import { Image as ImageIcon, Check, Loader2, X, Euro, ChevronRight, Building2, Save, Clock, Sun, Snowflake, AlertTriangle, Plus, Settings2, Bell } from 'lucide-react';
 import { PriceListEditor } from './PriceListEditor';
 import { useCompanyInfo, CompanyInfo } from '../hooks/useCompanyInfo';
 import { useTermSettings, TermSettings } from '../hooks/useTermSettings';
 import { useSeasonConfig, SeasonConfig } from '../hooks/useSeasonConfig';
 import { useCalendarConfig, CalendarConfig } from '../hooks/useCalendarConfig';
 import { useErrorCodes, ErrorCode } from '../hooks/useErrorCodes';
+import { toast } from 'sonner';
 
 interface SettingsProps {
   onBackgroundUpdate: (url: string) => void;
@@ -73,6 +74,7 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     try {
       await saveTermSettings(localTermSettings);
       setTermsSaveStatus('success');
+      toast.success('Aktualizované');
       setTimeout(() => setTermsSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Error saving term settings:', error);
@@ -86,6 +88,7 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     try {
       await saveCalendarConfig(localCalendarConfig);
       setCalendarSaveStatus('success');
+      toast.success('Aktualizované');
       setTimeout(() => setCalendarSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Error saving calendar config:', error);
@@ -99,6 +102,7 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     try {
       await saveCompanyInfo(localCompanyInfo);
       setSaveStatus('success');
+      toast.success('Aktualizované');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Error saving company info:', error);
@@ -147,6 +151,7 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     try {
       await saveSeasonConfig(localSeasonConfig);
       setSeasonSaveStatus('success');
+      toast.success('Aktualizované');
       setTimeout(() => setSeasonSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Error saving season config:', error);
@@ -947,6 +952,64 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                       ) : (
                         <p className="text-center py-8 text-white/20 italic">Zatiaľ žiadne chybové kódy.</p>
                       )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+
+          {/* Notifications Section */}
+          <section className="space-y-4 pt-4 border-t border-white/5">
+            <button 
+              onClick={() => toggleSection('notifications')}
+              className="w-full flex items-center justify-between text-white/80 hover:text-white transition-colors group p-2 rounded-xl hover:bg-white/5"
+            >
+              <div className="flex items-center gap-2">
+                <Bell size={20} className="text-[#3A87AD]" />
+                <h3 className="text-lg font-bold">Upozornenia</h3>
+              </div>
+              <ChevronRight 
+                size={20} 
+                className={`text-white/20 group-hover:text-white/40 transition-transform duration-300 ${activeSection === 'notifications' ? 'rotate-90' : ''}`} 
+              />
+            </button>
+            
+            <AnimatePresence>
+              {activeSection === 'notifications' && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-1 pt-2 space-y-6">
+                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10 space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-[#3A87AD]/20 rounded-xl">
+                          <Bell className="text-[#3A87AD]" size={24} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-white uppercase tracking-wider">Push Upozornenia</h4>
+                          <p className="text-xs text-white/40">Dostávajte upozornenia na nové objednávky priamo na iPhone.</p>
+                        </div>
+                      </div>
+                      
+                      <button 
+                        onClick={() => {
+                          toast.info('Funkcia Web Push vyžaduje konfiguráciu Service Workera a VAPID kľúčov.');
+                        }}
+                        className="btn-primary w-full justify-center py-4 rounded-xl"
+                      >
+                        <Bell size={20} />
+                        <span className="font-bold uppercase">Povoliť upozornenia</span>
+                      </button>
+                      
+                      <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                        <p className="text-[10px] text-blue-400 leading-relaxed">
+                          Poznámka: Pre fungovanie upozornení na iPhone musí byť aplikácia pridaná na plochu (Add to Home Screen) a iOS musí byť vo verzii 16.4 alebo novšej.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
