@@ -14,14 +14,18 @@ const firebaseConfig = JSON.parse(fs.readFileSync("./firebase-applet-config.json
 const app_firebase = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app_firebase, firebaseConfig.firestoreDatabaseId);
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "138673940716-gesjk0mbmf47qmp0n8rdvm48qk88ok5n.apps.googleusercontent.com";
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || (process.env.APP_URL ? `${process.env.APP_URL}/api/auth/google/callback` : "http://localhost:3000/api/auth/google/callback");
 
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+  throw new Error('Chýbajú Google OAuth credentials');
+}
+
 const CALENDARS = {
-  RESERVATIONS: "sp24therm@gmail.com",
-  FAMILY: "7cb370e4cb78a87bfd9f339e2545bb8bdbeca73d548a35dc68ee515aa5aba3a4@group.calendar.google.com",
-  PRIVATE: "scepanpeter@gmail.com"
+  RESERVATIONS: process.env.WORK_CALENDAR_ID,
+  FAMILY: process.env.FAMILY_CALENDAR_ID,
+  PRIVATE: process.env.PERSONAL_CALENDAR_ID
 };
 
 const oauth2Client = new google.auth.OAuth2(
