@@ -1,0 +1,101 @@
+import { AppState, ServiceStatus } from './types';
+
+export const MOCK_DATA: AppState = {
+  customers: [
+    {
+      id: 'c1',
+      name: 'Ján Novák',
+      company: 'Novák s.r.o.',
+      phone: '+421905123456',
+      email: 'jan.novak@email.sk',
+      notes: 'Dlhoročný zákazník',
+    },
+    {
+      id: 'c2',
+      name: 'Mária Kováčová',
+      phone: '+421911987654',
+      email: 'maria.kovac@email.sk',
+    },
+    {
+      id: 'c3',
+      name: 'Peter Svoboda',
+      phone: '+421903555444',
+    },
+  ],
+  boilers: [
+    {
+      id: 'b1',
+      customerId: 'c1',
+      name: 'Hlavný kotol',
+      address: 'Hlavná 15, 811 01 Bratislava',
+      lat: 48.1486,
+      lng: 17.1077,
+      brand: 'Viessmann',
+      model: 'Vitodens 200-W',
+      serialNumber: 'V200W-12345678',
+      installDate: '2020-05-10',
+      lastServiceDate: '2024-03-15',
+      nextServiceDate: '2025-03-15',
+    },
+    {
+      id: 'b2',
+      customerId: 'c2',
+      name: 'Hlavný kotol',
+      address: 'Mierová 42, 040 01 Košice',
+      lat: 48.7164,
+      lng: 21.2611,
+      brand: 'Buderus',
+      model: 'Logamax plus GB172',
+      serialNumber: 'LGB172-87654321',
+      installDate: '2018-09-20',
+      lastServiceDate: '2023-05-20',
+      nextServiceDate: '2024-05-20',
+    },
+    {
+      id: 'b3',
+      customerId: 'c3',
+      name: 'Hlavný kotol',
+      address: 'Štúrova 8, 949 01 Nitra',
+      lat: 48.3061,
+      lng: 18.0845,
+      brand: 'Vaillant',
+      model: 'ecoTEC plus',
+      serialNumber: 'VAI-99887766',
+      installDate: '2022-03-10',
+      lastServiceDate: '2025-03-10',
+      nextServiceDate: '2026-03-10',
+    },
+  ],
+  services: [
+    {
+      id: 's1',
+      boilerId: 'b1',
+      date: '2024-03-15',
+      taskPerformed: 'Ročná revízia, čistenie výmenníka',
+      co2Value: 9.2,
+      pressureValue: 1.5,
+      status: ServiceStatus.COMPLETED,
+    },
+    {
+      id: 's2',
+      boilerId: 'b2',
+      date: '2023-05-20',
+      taskPerformed: 'Výmena tesnení, kontrola tlaku',
+      co2Value: 8.8,
+      pressureValue: 1.2,
+      status: ServiceStatus.COMPLETED,
+    },
+  ],
+  contacts: [
+    {
+      id: 'con1',
+      name: 'Peter Servisák',
+      specialization: 'Servisný technik',
+      phone: '+421905111222',
+      email: 'peter@servis.sk',
+      address: 'Technická 1, Bratislava',
+      notes: 'Špecialista na Viessmann',
+      createdAt: '2024-01-01T10:00:00Z'
+    }
+  ]
+};
