@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncCalendarSlots = exports.onBookingConfirmed = void 0;
+exports.getGoogleAuthUrl = exports.googleAuthCallback = exports.manualSyncCalendarSlots = exports.syncCalendarSlots = exports.onBookingConfirmed = void 0;
 const admin = require("firebase-admin");
 const googleapis_1 = require("googleapis");
 const firebase_functions_1 = require("firebase-functions");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
+const https_1 = require("firebase-functions/v2/https");
 admin.initializeApp();
 const db = admin.firestore();
 db.settings({
@@ -17,12 +18,14 @@ const FAMILY_CALENDAR_ID = process.env.FAMILY_CALENDAR_ID;
 const PERSONAL_CALENDAR_ID = process.env.PERSONAL_CALENDAR_ID;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI;
+const APP_URL = process.env.APP_URL;
 const oauth2Client = new googleapis_1.google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
 /**
  * Helper to get authorized Google Calendar client
  */
 async function getCalendarClient() {
-    const tokensDoc = await db.doc("settings/google_calendar_tokens").get();
+    const tokensDoc = await db.doc("appConfig/googleCalendarTokens").get();
     if (!tokensDoc.exists) {
         throw new Error("Google Calendar tokens not found in Firestore");
     }
@@ -84,6 +87,27 @@ exports.onBookingConfirmed = (0, firestore_1.onDocumentUpdated)("bookings/{booki
  * Scheduled every 60 minutes to sync busy slots from Google Calendar
  */
 exports.syncCalendarSlots = (0, scheduler_1.onSchedule)("every 60 minutes", async (event) => {
+    await syncCalendarSlotsInternal();
+});
+/**
+ * FUNKCIA 5 — manualSyncCalendarSlots
+ * HTTP endpoint to manually trigger calendar synchronization
+ */
+exports.manualSyncCalendarSlots = (0, https_1.onRequest)(async (req, res) => {
+    try {
+        firebase_functions_1.logger.info("Manual calendar sync triggered.");
+        await syncCalendarSlotsInternal();
+        res.json({ status: "success", message: "Calendar slots synchronized successfully." });
+    }
+    catch (error) {
+        firebase_functions_1.logger.error("Error in manualSyncCalendarSlots:", error);
+        res.status(500).json({ status: "error", message: "Failed to synchronize calendar slots." });
+    }
+});
+/**
+ * Internal logic for calendar synchronization
+ */
+async function syncCalendarSlotsInternal() {
     firebase_functions_1.logger.info("Starting calendar slots sync...");
     try {
         const calendar = await getCalendarClient();
@@ -96,6 +120,14 @@ exports.syncCalendarSlots = (0, scheduler_1.onSchedule)("every 60 minutes", asyn
             { id: PERSONAL_CALENDAR_ID, name: "PERSONAL" }
         ];
         const blockedSlots = [];
+        // 1. Add lunch break for the next 30 days (12:00)
+        for (let i = 0; i < 30; i++) {
+            const d = new Date(now);
+            d.setDate(d.getDate() + i);
+            const dateStr = d.toISOString().split("T")[0];
+            blockedSlots.push({ date: dateStr, time: "12:00", reason: "lunch_break" });
+        }
+        // 2. Fetch events from calendars
         for (const cal of calendarsToSync) {
             if (!cal.id)
                 continue;
@@ -108,19 +140,45 @@ exports.syncCalendarSlots = (0, scheduler_1.onSchedule)("every 60 minutes", asyn
                 orderBy: "startTime",
             });
             const events = response.data.items || [];
-            events.forEach(item => {
-                var _a;
-                if ((_a = item.start) === null || _a === void 0 ? void 0 : _a.dateTime) {
-                    const start = new Date(item.start.dateTime);
-                    const date = start.toISOString().split("T")[0];
-                    const time = start.toTimeString().split(" ")[0].substring(0, 5);
-                    blockedSlots.push({
-                        date,
-                        time,
-                        reason: "calendar_event"
-                    });
-                }
-            });
+            if (cal.name === "WORK") {
+                // WORK calendar logic (120 min duration)
+                events.forEach(item => {
+                    var _a;
+                    if ((_a = item.start) === null || _a === void 0 ? void 0 : _a.dateTime) {
+                        const start = new Date(item.start.dateTime);
+                        const date = start.toISOString().split("T")[0];
+                        const time = start.toTimeString().split(" ")[0].substring(0, 5);
+                        blockedSlots.push({ date, time, reason: "reservation" });
+                        // Block the next hour too (120 min total)
+                        const nextHour = new Date(start.getTime() + 60 * 60 * 1000);
+                        const nextTime = nextHour.toTimeString().split(" ")[0].substring(0, 5);
+                        blockedSlots.push({ date, time: nextTime, reason: "reservation_buffer" });
+                    }
+                });
+            }
+            else {
+                // FAMILY and PERSONAL logic (Duration + 60 min buffer)
+                events.forEach(item => {
+                    var _a, _b;
+                    if (((_a = item.start) === null || _a === void 0 ? void 0 : _a.dateTime) && ((_b = item.end) === null || _b === void 0 ? void 0 : _b.dateTime)) {
+                        const start = new Date(item.start.dateTime);
+                        const end = new Date(item.end.dateTime);
+                        const bufferedEnd = new Date(end.getTime() + 60 * 60 * 1000); // 1h buffer
+                        // Working slots: 07:00 to 16:00
+                        const possibleSlots = ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"];
+                        const eventDate = start.toISOString().split("T")[0];
+                        possibleSlots.forEach(slotTime => {
+                            const [h, m] = slotTime.split(":").map(Number);
+                            const slotStart = new Date(start);
+                            slotStart.setHours(h, m, 0, 0);
+                            const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000);
+                            if (slotStart < bufferedEnd && slotEnd > start) {
+                                blockedSlots.push({ date: eventDate, time: slotTime, reason: "other_event" });
+                            }
+                        });
+                    }
+                });
+            }
         }
         firebase_functions_1.logger.info(`Syncing ${blockedSlots.length} slots to Firestore...`);
         const slotsRef = db.collection("slots");
@@ -137,7 +195,57 @@ exports.syncCalendarSlots = (0, scheduler_1.onSchedule)("every 60 minutes", asyn
         firebase_functions_1.logger.info("Calendar slots sync completed successfully.");
     }
     catch (error) {
-        firebase_functions_1.logger.error("Error in syncCalendarSlots:", error);
+        firebase_functions_1.logger.error("Error in syncCalendarSlotsInternal:", error);
+        throw error;
+    }
+}
+/**
+ * FUNKCIA 3 — googleAuthCallback
+ * HTTP endpoint for Google OAuth2 callback
+ */
+exports.googleAuthCallback = (0, https_1.onRequest)(async (req, res) => {
+    const code = req.query.code;
+    if (!code) {
+        res.status(400).send("Chýba authorization code");
+        return;
+    }
+    try {
+        const { tokens } = await oauth2Client.getToken({
+            code,
+            redirect_uri: OAUTH_REDIRECT_URI
+        });
+        oauth2Client.setCredentials(tokens);
+        // Ulož tokeny do Firestore
+        await db.doc("appConfig/googleCalendarTokens").set(Object.assign(Object.assign({}, tokens), { updatedAt: admin.firestore.FieldValue.serverTimestamp() }), { merge: true });
+        firebase_functions_1.logger.info("Google Calendar tokens successfully updated via OAuth callback.");
+        // Presmeruj späť do aplikácie
+        res.redirect(APP_URL + "?calendar=connected");
+    }
+    catch (error) {
+        firebase_functions_1.logger.error("OAuth callback error:", error);
+        res.redirect(APP_URL + "?calendar=error");
+    }
+});
+/**
+ * FUNKCIA 4 — getGoogleAuthUrl
+ * HTTP endpoint to generate Google OAuth2 authorization URL
+ */
+exports.getGoogleAuthUrl = (0, https_1.onRequest)(async (req, res) => {
+    try {
+        const url = oauth2Client.generateAuthUrl({
+            access_type: "offline",
+            prompt: "consent",
+            scope: [
+                "https://www.googleapis.com/auth/calendar.events",
+                "https://www.googleapis.com/auth/calendar.readonly"
+            ],
+            redirect_uri: OAUTH_REDIRECT_URI
+        });
+        res.json({ url });
+    }
+    catch (error) {
+        firebase_functions_1.logger.error("Error generating auth URL:", error);
+        res.status(500).send("Chyba pri generovaní URL");
     }
 });
 //# sourceMappingURL=index.js.map

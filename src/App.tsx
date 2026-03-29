@@ -248,8 +248,8 @@ export default function App() {
 
   // Initial sync on app load
   useEffect(() => {
-    if (user) {
-      fetch('/api/calendar/sync', { method: 'POST' })
+    if (user && import.meta.env.VITE_FUNCTIONS_URL) {
+      fetch(`${import.meta.env.VITE_FUNCTIONS_URL}/manualSyncCalendarSlots`, { method: 'POST' })
         .then(res => res.json())
         .then(data => {
           if (data.success) {
@@ -333,24 +333,8 @@ export default function App() {
       .then(async (result) => {
         if (result) {
           console.log("Login successful via redirect:", result.user.email);
-          
-          // Get Google OAuth credential
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential) {
-            const accessToken = credential.accessToken;
-            // Note: refreshToken is usually not available in client-side Firebase Auth redirect result
-            // for the Google provider, but we send what we have.
-            try {
-              await fetch('/api/auth/google/sync-tokens', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accessToken })
-              });
-              console.log("Tokens synced to backend");
-            } catch (err) {
-              console.error("Failed to sync tokens to backend:", err);
-            }
-          }
+          // Note: Token sync to backend is now handled via the dedicated OAuth flow
+          // initiated from Sidebar or Settings, which provides a refresh token.
         }
       })
       .catch((error) => {

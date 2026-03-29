@@ -54,7 +54,7 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         toast.success('Google Kalendár úspešne prepojený');
         // Trigger sync
-        fetch('/api/calendar/sync', { method: 'POST' });
+        fetch(`${import.meta.env.VITE_FUNCTIONS_URL}/manualSyncCalendarSlots`, { method: 'POST' });
       }
     };
     window.addEventListener('message', handleMessage);
@@ -64,7 +64,7 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
   const handleConnectGoogle = async () => {
     setIsConnectingGoogle(true);
     try {
-      const response = await fetch('/api/auth/google/url');
+      const response = await fetch(`${import.meta.env.VITE_FUNCTIONS_URL}/getGoogleAuthUrl`);
       const { url } = await response.json();
       window.open(url, 'google_auth', 'width=600,height=700');
     } catch (error) {

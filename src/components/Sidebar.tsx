@@ -23,7 +23,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isVisible }: SidebarProps) =>
 
   useEffect(() => {
     // Listen to calendar tokens in Firestore
-    const unsub = onSnapshot(doc(db, 'settings', 'google_calendar_tokens'), (doc) => {
+    const unsub = onSnapshot(doc(db, 'appConfig', 'googleCalendarTokens'), (doc) => {
       if (doc.exists()) {
         const data = doc.data();
         // Check if we have a refresh token or a valid access token
@@ -101,9 +101,15 @@ export const Sidebar = ({ activeTab, setActiveTab, isVisible }: SidebarProps) =>
                   {/* Calendar Sync Status */}
                   {hasCalendarToken === false && (
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         setIsUserMenuOpen(false);
-                        window.location.href = '/api/auth/google';
+                        try {
+                          const response = await fetch(`${import.meta.env.VITE_FUNCTIONS_URL}/getGoogleAuthUrl`);
+                          const { url } = await response.json();
+                          window.location.href = url;
+                        } catch (error) {
+                          console.error('Error getting auth URL:', error);
+                        }
                       }}
                       className="w-full flex items-center gap-3 p-3 mb-1 rounded-xl bg-[#3A87AD]/20 text-[#3A87AD] hover:bg-[#3A87AD]/30 transition-all text-sm font-bold border border-[#3A87AD]/30"
                     >

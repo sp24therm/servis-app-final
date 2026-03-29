@@ -186,7 +186,7 @@ export const BookingsManager = () => {
   const [isGoogleConnected, setIsGoogleConnected] = useState<boolean | null>(null);
 
   React.useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'google_calendar_tokens'), (snap) => {
+    const unsub = onSnapshot(doc(db, 'appConfig', 'googleCalendarTokens'), (snap) => {
       setIsGoogleConnected(snap.exists());
     });
     return () => unsub();
@@ -200,19 +200,6 @@ export const BookingsManager = () => {
     try {
       const success = await confirmBooking(booking);
       if (success) {
-        // Create Google Calendar Event
-        try {
-          await fetch('/api/calendar/create-event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ booking })
-          });
-          toast.success('Udalosť vytvorená v Google kalendári');
-        } catch (err) {
-          console.error('Failed to create Google Calendar event:', err);
-          toast.error('Nepodarilo sa vytvoriť udalosť v Google kalendári');
-        }
-
         toast.success('Termín potvrdený a zákazník vytvorený');
         
         // SMS Bridge for iPhone PWA
