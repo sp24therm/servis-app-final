@@ -246,6 +246,8 @@ exports.getGoogleAuthUrl = (0, https_1.onRequest)({
     secrets: [googleClientId, googleClientSecret, oauthRedirectUri]
 }, async (req, res) => {
     try {
+        firebase_functions_1.logger.info("Client ID exists:", !!googleClientId.value());
+        firebase_functions_1.logger.info("Redirect URI:", oauthRedirectUri.value());
         const oauth2Client = new googleapis_1.google.auth.OAuth2(googleClientId.value(), googleClientSecret.value());
         const url = oauth2Client.generateAuthUrl({
             access_type: "offline",

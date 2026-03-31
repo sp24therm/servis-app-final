@@ -304,6 +304,9 @@ export const getGoogleAuthUrl = onRequest(
   }, 
   async (req, res) => {
     try {
+      logger.info("Client ID exists:", !!googleClientId.value());
+      logger.info("Redirect URI:", oauthRedirectUri.value());
+
       const oauth2Client = new google.auth.OAuth2(
         googleClientId.value(),
         googleClientSecret.value()
