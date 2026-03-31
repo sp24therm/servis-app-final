@@ -4,6 +4,7 @@ exports.getGoogleAuthUrl = exports.googleAuthCallback = exports.manualSyncCalend
 const admin = require("firebase-admin");
 const googleapis_1 = require("googleapis");
 const firebase_functions_1 = require("firebase-functions");
+const params_1 = require("firebase-functions/params");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const https_1 = require("firebase-functions/v2/https");
@@ -12,19 +13,19 @@ const db = admin.firestore();
 db.settings({
     databaseId: "ai-studio-f0fbd47e-303b-40fe-88c1-505382c75ba3"
 });
-// Environment variables
-const WORK_CALENDAR_ID = process.env.WORK_CALENDAR_ID;
-const FAMILY_CALENDAR_ID = process.env.FAMILY_CALENDAR_ID;
-const PERSONAL_CALENDAR_ID = process.env.PERSONAL_CALENDAR_ID;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI;
-const APP_URL = process.env.APP_URL;
-const oauth2Client = new googleapis_1.google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
+// Secrets
+const googleClientId = (0, params_1.defineSecret)("GOOGLE_CLIENT_ID");
+const googleClientSecret = (0, params_1.defineSecret)("GOOGLE_CLIENT_SECRET");
+const oauthRedirectUri = (0, params_1.defineSecret)("OAUTH_REDIRECT_URI");
+const appUrl = (0, params_1.defineSecret)("APP_URL");
+const workCalendarId = (0, params_1.defineSecret)("WORK_CALENDAR_ID");
+const familyCalendarId = (0, params_1.defineSecret)("FAMILY_CALENDAR_ID");
+const personalCalendarId = (0, params_1.defineSecret)("PERSONAL_CALENDAR_ID");
 /**
  * Helper to get authorized Google Calendar client
  */
-async function getCalendarClient() {
+async function getCalendarClient(clientId, clientSecret) {
+    const oauth2Client = new googleapis_1.google.auth.OAuth2(clientId, clientSecret);
     const tokensDoc = await db.doc("appConfig/googleCalendarTokens").get();
     if (!tokensDoc.exists) {
         throw new Error("Google Calendar tokens not found in Firestore");
@@ -37,7 +38,10 @@ async function getCalendarClient() {
  * FUNKCIA 1 — onBookingConfirmed
  * Triggered when a booking status changes to 'confirmed'
  */
-exports.onBookingConfirmed = (0, firestore_1.onDocumentUpdated)("bookings/{bookingId}", async (event) => {
+exports.onBookingConfirmed = (0, firestore_1.onDocumentUpdated)({
+    document: "bookings/{bookingId}",
+    secrets: [googleClientId, googleClientSecret, workCalendarId]
+}, async (event) => {
     var _a, _b;
     const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
     const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
@@ -49,7 +53,7 @@ exports.onBookingConfirmed = (0, firestore_1.onDocumentUpdated)("bookings/{booki
     if (after.status === "confirmed" && before.status !== "confirmed") {
         firebase_functions_1.logger.info(`Booking ${event.params.bookingId} confirmed. Creating calendar event...`);
         try {
-            const calendar = await getCalendarClient();
+            const calendar = await getCalendarClient(googleClientId.value(), googleClientSecret.value());
             const startDateTime = `${after.preferredDate}T${after.preferredTime}:00`;
             const endDateTime = new Date(new Date(startDateTime).getTime() + 120 * 60 * 1000).toISOString();
             const calendarEvent = {
@@ -66,7 +70,7 @@ exports.onBookingConfirmed = (0, firestore_1.onDocumentUpdated)("bookings/{booki
                 },
             };
             const response = await calendar.events.insert({
-                calendarId: WORK_CALENDAR_ID,
+                calendarId: workCalendarId.value(),
                 requestBody: calendarEvent,
             });
             const calendarEventId = response.data.id;
@@ -86,14 +90,19 @@ exports.onBookingConfirmed = (0, firestore_1.onDocumentUpdated)("bookings/{booki
  * FUNKCIA 2 — syncCalendarSlots
  * Scheduled every 60 minutes to sync busy slots from Google Calendar
  */
-exports.syncCalendarSlots = (0, scheduler_1.onSchedule)("every 60 minutes", async (event) => {
+exports.syncCalendarSlots = (0, scheduler_1.onSchedule)({
+    schedule: "every 60 minutes",
+    secrets: [googleClientId, googleClientSecret, workCalendarId, familyCalendarId, personalCalendarId]
+}, async (event) => {
     await syncCalendarSlotsInternal();
 });
 /**
  * FUNKCIA 5 — manualSyncCalendarSlots
  * HTTP endpoint to manually trigger calendar synchronization
  */
-exports.manualSyncCalendarSlots = (0, https_1.onRequest)(async (req, res) => {
+exports.manualSyncCalendarSlots = (0, https_1.onRequest)({
+    secrets: [googleClientId, googleClientSecret, workCalendarId, familyCalendarId, personalCalendarId]
+}, async (req, res) => {
     try {
         firebase_functions_1.logger.info("Manual calendar sync triggered.");
         await syncCalendarSlotsInternal();
@@ -110,14 +119,14 @@ exports.manualSyncCalendarSlots = (0, https_1.onRequest)(async (req, res) => {
 async function syncCalendarSlotsInternal() {
     firebase_functions_1.logger.info("Starting calendar slots sync...");
     try {
-        const calendar = await getCalendarClient();
+        const calendar = await getCalendarClient(googleClientId.value(), googleClientSecret.value());
         const now = new Date();
         const timeMin = now.toISOString();
         const timeMax = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days ahead
         const calendarsToSync = [
-            { id: WORK_CALENDAR_ID, name: "WORK" },
-            { id: FAMILY_CALENDAR_ID, name: "FAMILY" },
-            { id: PERSONAL_CALENDAR_ID, name: "PERSONAL" }
+            { id: workCalendarId.value(), name: "WORK" },
+            { id: familyCalendarId.value(), name: "FAMILY" },
+            { id: personalCalendarId.value(), name: "PERSONAL" }
         ];
         const blockedSlots = [];
         // 1. Add lunch break for the next 30 days (12:00)
@@ -203,35 +212,41 @@ async function syncCalendarSlotsInternal() {
  * FUNKCIA 3 — googleAuthCallback
  * HTTP endpoint for Google OAuth2 callback
  */
-exports.googleAuthCallback = (0, https_1.onRequest)(async (req, res) => {
+exports.googleAuthCallback = (0, https_1.onRequest)({
+    secrets: [googleClientId, googleClientSecret, oauthRedirectUri, appUrl]
+}, async (req, res) => {
     const code = req.query.code;
     if (!code) {
         res.status(400).send("Chýba authorization code");
         return;
     }
     try {
+        const oauth2Client = new googleapis_1.google.auth.OAuth2(googleClientId.value(), googleClientSecret.value());
         const { tokens } = await oauth2Client.getToken({
             code,
-            redirect_uri: OAUTH_REDIRECT_URI
+            redirect_uri: oauthRedirectUri.value()
         });
         oauth2Client.setCredentials(tokens);
         // Ulož tokeny do Firestore
         await db.doc("appConfig/googleCalendarTokens").set(Object.assign(Object.assign({}, tokens), { updatedAt: admin.firestore.FieldValue.serverTimestamp() }), { merge: true });
         firebase_functions_1.logger.info("Google Calendar tokens successfully updated via OAuth callback.");
         // Presmeruj späť do aplikácie
-        res.redirect(APP_URL + "?calendar=connected");
+        res.redirect(appUrl.value() + "?calendar=connected");
     }
     catch (error) {
         firebase_functions_1.logger.error("OAuth callback error:", error);
-        res.redirect(APP_URL + "?calendar=error");
+        res.redirect(appUrl.value() + "?calendar=error");
     }
 });
 /**
  * FUNKCIA 4 — getGoogleAuthUrl
  * HTTP endpoint to generate Google OAuth2 authorization URL
  */
-exports.getGoogleAuthUrl = (0, https_1.onRequest)(async (req, res) => {
+exports.getGoogleAuthUrl = (0, https_1.onRequest)({
+    secrets: [googleClientId, googleClientSecret, oauthRedirectUri]
+}, async (req, res) => {
     try {
+        const oauth2Client = new googleapis_1.google.auth.OAuth2(googleClientId.value(), googleClientSecret.value());
         const url = oauth2Client.generateAuthUrl({
             access_type: "offline",
             prompt: "consent",
@@ -239,7 +254,7 @@ exports.getGoogleAuthUrl = (0, https_1.onRequest)(async (req, res) => {
                 "https://www.googleapis.com/auth/calendar.events",
                 "https://www.googleapis.com/auth/calendar.readonly"
             ],
-            redirect_uri: OAUTH_REDIRECT_URI
+            redirect_uri: oauthRedirectUri.value()
         });
         res.json({ url });
     }
