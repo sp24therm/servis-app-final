@@ -1,5 +1,7 @@
 {
-  "name": "SP Therm - Prémiový Servis",
-  "description": "Prémiová prezentácia firmy SP Therm so smart cenníkom, AI technikom a kalkulačkou.",
-  "requestFramePermissions": ["geolocation"]
+  "name": "SP Therm s.r.o.",
+  "description": "Profesionálny systém na správu servisu plynových kotlov pre technikov SP Therm.",
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

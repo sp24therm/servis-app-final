@@ -1,80 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+@import "leaflet/dist/leaflet.css";
 
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --radius-2xl: 24px;
-}
-
-:root {
-  --bg-black: #050505;
-  --dark-blue: #1D4461;
-  --light-blue: #3271A5;
-  --flame-red: #D32F2F;
-  --main-black: #1A1A1A;
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(255, 255, 255, 0.03);
-}
-
-@theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --radius-2xl: 24px;
-  --color-dark-blue: var(--dark-blue);
-  --color-light-blue: var(--light-blue);
-  --color-flame-red: var(--flame-red);
-  --color-main-black: var(--main-black);
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 body {
-  background-color: var(--bg-black);
-  color: #ffffff;
-  font-family: var(--font-sans);
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
+  @apply text-[#E0E0E0] font-sans;
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+  background-color: #121212;
 }
 
-.mesh-gradient {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  background: radial-gradient(at 0% 0%, rgba(29, 68, 97, 0.3) 0px, transparent 50%),
-              radial-gradient(at 100% 100%, rgba(211, 47, 47, 0.1) 0px, transparent 50%),
-              radial-gradient(at 50% 50%, rgba(0, 0, 0, 1) 0px, transparent 100%);
-  filter: blur(80px);
+#root {
+  background: transparent;
 }
 
-.glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
+.card {
+  @apply bg-[#1E1E1E]/95 backdrop-blur-md rounded-2xl shadow-xl border border-white/5 overflow-hidden text-white;
 }
 
-.apple-badge-gradient {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
-  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+.btn-primary {
+  @apply bg-[#3A87AD] hover:bg-[#2E6D8C] text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-lg shadow-[#3A87AD]/20;
 }
 
-.pulse-glass {
-  animation: pulse-glass 2s infinite;
+.btn-secondary {
+  @apply bg-white/5 border border-white/10 hover:bg-white/10 text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2;
 }
 
-@keyframes pulse-glass {
-  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.1); }
-  70% { box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
-}
-
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-  border-radius: 20px;
-  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+.input-field {
+  @apply w-full px-4 py-2 rounded-xl border border-white/10 bg-black/40 text-white focus:outline-none focus:ring-2 focus:ring-[#3A87AD]/40 focus:border-[#3A87AD] transition-all;
 }
 
 /* Custom scrollbar */
@@ -82,17 +40,37 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #000;
+  @apply bg-transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #222;
-  border-radius: 10px;
+  @apply bg-white/10 rounded-full;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #333;
+  @apply bg-white/20;
 }
 
-.whitespace-section {
-  padding-top: 120px;
-  padding-bottom: 120px;
+/* Leaflet Dark Mode */
+.dark-map .leaflet-tile {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
 }
+
+.dark-map .leaflet-container {
+  background: #121212;
+}
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  @apply bg-[#1E1E1E] text-white border border-white/10;
+  background-color: #1E1E1E;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.leaflet-popup-content {
+  margin: 8px;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  @apply text-white/40 hover:text-white;
+  color: rgba(255,255,255,0.4);
+}
+

@@ -1,20 +1,32 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Servis Plyn - Webová Aplikácia
 
-# Run and deploy your AI Studio app
+Tento projekt bol vytvorený v Google AI Studio. Ide o React aplikáciu postavenú na Vite s integráciou Firebase.
 
-This contains everything you need to run your app locally.
+## Ako spustiť projekt lokálne:
 
-View your app in AI Studio: https://ai.studio/apps/b1a8737c-073c-4a07-9fa4-abc6c6a5cb28
+1.  **Rozbaľte ZIP archív.**
+2.  **Otvorte terminál** v priečinku projektu.
+3.  **Nainštalujte závislosti:**
+    ```bash
+    npm install
+    ```
+4.  **Spustite vývojový server:**
+    ```bash
+    npm run dev
+    ```
+5.  **Otvorte prehliadač** na adrese `http://localhost:3000`.
 
-## Run Locally
+## Ako vytvoriť produkčný build:
 
-**Prerequisites:**  Node.js
+Ak chcete aplikáciu nasadiť na Netlify, Vercel alebo iný hosting:
+1.  Spustite príkaz:
+    ```bash
+    npm run build
+    ```
+2.  Obsah priečinka **`dist`** je to, čo treba nahrať na hosting.
 
+## Konfigurácia Firebase:
+Všetky potrebné kľúče sú už v súbore `firebase-applet-config.json`. Ak chcete použiť vlastný Firebase projekt, aktualizujte tento súbor.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Poznámka k Netlify:
+Pri nasadzovaní na Netlify nezabudnite v nastaveniach (Authorized domains) vo Firebase Console pridať vašu novú doménu, aby fungovalo Google prihlásenie.
