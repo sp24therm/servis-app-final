@@ -1,97 +1,91 @@
 {
   "entities": {
-    "Customer": {
-      "title": "Customer",
-      "description": "A customer who owns boilers.",
+    "GlobalSettings": {
+      "title": "Global Settings",
+      "description": "Global application settings including seasonal configuration.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
+        "isWinter": {
+          "type": "boolean",
+          "description": "Whether the application is in winter mode."
+        }
+      },
+      "required": ["isWinter"]
+    },
+    "ErrorCode": {
+      "title": "Error Code",
+      "description": "Diagnostic error code information.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "The error code (e.g., '108')."
+        },
+        "brand": {
+          "type": "string",
+          "description": "The boiler brand (e.g., 'ATAG')."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Nebezpečné", "Reštart", "Urob si sám"],
+          "description": "The severity category of the error."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the error."
+        },
+        "instruction": {
+          "type": "string",
+          "description": "Detailed UX instructions for the user."
+        }
+      },
+      "required": ["code", "brand", "category", "description", "instruction"]
+    }
+    "Booking": {
+      "title": "Booking",
+      "description": "A service request from a customer.",
+      "type": "object",
+      "properties": {
         "name": { "type": "string" },
-        "company": { "type": "string" },
         "phone": { "type": "string" },
-        "email": { "type": "string" },
-        "notes": { "type": "string" }
-      },
-      "required": ["id", "name", "phone"]
-    },
-    "Boiler": {
-      "title": "Boiler",
-      "description": "A boiler unit belonging to a customer.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "customerId": { "type": "string" },
-        "name": { "type": "string" },
         "address": { "type": "string" },
-        "lat": { "type": "number" },
-        "lng": { "type": "number" },
-        "brand": { "type": "string" },
-        "model": { "type": "string" },
-        "serialNumber": { "type": "string" },
-        "installDate": { "type": "string" },
+        "boilerBrand": { "type": "string" },
         "notes": { "type": "string" },
-        "lastServiceDate": { "type": "string" },
-        "nextServiceDate": { "type": "string" }
+        "preferredDate": { "type": "string", "format": "date" },
+        "preferredTime": { "type": "string" },
+        "serviceType": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "completed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "customerId", "name", "address", "brand", "model", "serialNumber", "installDate"]
+      "required": ["name", "phone", "status", "createdAt", "preferredDate", "preferredTime", "serviceType"]
     },
-    "ServiceRecord": {
-      "title": "ServiceRecord",
-      "description": "A record of a service performed on a boiler.",
+    "PublicSlot": {
+      "title": "Public Slot",
+      "description": "A record of a taken time slot for availability checking.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "boilerId": { "type": "string" },
         "date": { "type": "string" },
-        "taskPerformed": { "type": "string" },
-        "co2Value": { "type": "number" },
-        "pressureValue": { "type": "number" },
-        "status": { "type": "string" },
-        "technicianNotes": { "type": "string" },
-        "signature": { "type": "string" },
-        "photo": { "type": "string" },
-        "co2Max": { "type": "number" },
-        "co2Min": { "type": "number" },
-        "o2Max": { "type": "number" },
-        "o2Min": { "type": "number" },
-        "efficiency": { "type": "number" },
-        "gasPressure": { "type": "number" },
-        "expansionTankPressureCH": { "type": "number" },
-        "hasDHWExpansionTank": { "type": "boolean" },
-        "expansionTankPressureDHW": { "type": "number" },
-        "conductivity": { "type": "number" },
-        "phCH": { "type": "number" },
-        "hardnessCH": { "type": "number" },
-        "burnerCheck": { "type": "boolean" },
-        "combustionChamberCleaning": { "type": "boolean" },
-        "electrodesCheck": { "type": "boolean" },
-        "exchangerCheck": { "type": "boolean" },
-        "fanCheck": { "type": "boolean" },
-        "filtersCleaning": { "type": "boolean" },
-        "siphonCleaning": { "type": "boolean" },
-        "gasCircuitTightness": { "type": "boolean" },
-        "flueGasOutletTightness": { "type": "boolean" },
-        "pumpCheck": { "type": "boolean" },
-        "threeWayValveCheck": { "type": "boolean" },
-        "airSupplyVentilation": { "type": "boolean" },
-        "emergencyStatesCheck": { "type": "boolean" },
-        "bondingProtection": { "type": "boolean" }
+        "time": { "type": "string" }
       },
-      "required": ["id", "boilerId", "date", "taskPerformed", "status"]
+      "required": ["date", "time"]
     }
   },
   "firestore": {
-    "/customers/{customerId}": {
-      "schema": "Customer",
-      "description": "Collection of customers."
+    "/settings/global": {
+      "schema": "GlobalSettings",
+      "description": "Global configuration document."
     },
-    "/boilers/{boilerId}": {
-      "schema": "Boiler",
-      "description": "Collection of boilers."
+    "/errorCodes/{errorCodeId}": {
+      "schema": "ErrorCode",
+      "description": "Collection of diagnostic error codes."
     },
-    "/services/{serviceId}": {
-      "schema": "ServiceRecord",
-      "description": "Collection of service records."
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Customer service bookings (Admin only)."
+    },
+    "/slots/{slotId}": {
+      "schema": "PublicSlot",
+      "description": "Publicly visible busy slots."
     }
   }
 }
