@@ -9,15 +9,31 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then((reg) => {
-        console.log('SW registered:', reg.scope);
-      })
-      .catch((err) => {
-        console.log('SW registration failed:', err);
-      });
-  });
+if (import.meta.env.PROD) {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((reg) => {
+          console.log('SW registered:', reg.scope);
+        })
+        .catch((err) => {
+          console.log('SW registration failed:', err);
+        });
+    });
+  }
+} else {
+  // In development, unregister any active service worker to avoid caching issues
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) {
+        registration.unregister().then((unregistered) => {
+          if (unregistered) {
+            console.log('Stale SW unregistered in dev mode:', registration);
+            window.location.reload();
+          }
+        });
+      }
+    });
+  }
 }

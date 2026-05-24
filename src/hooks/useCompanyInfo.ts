@@ -13,6 +13,10 @@ export interface CompanyInfo {
   phone: string;
   email: string;
   iban: string;
+  analyzerModel: string;
+  analyzerSerial: string;
+  gasDetectorModel: string;
+  stampUrl: string;
 }
 
 const INITIAL_STATE: CompanyInfo = {
@@ -26,6 +30,10 @@ const INITIAL_STATE: CompanyInfo = {
   phone: '',
   email: '',
   iban: '',
+  analyzerModel: '',
+  analyzerSerial: '',
+  gasDetectorModel: '',
+  stampUrl: '',
 };
 
 export const useCompanyInfo = () => {
@@ -37,7 +45,7 @@ export const useCompanyInfo = () => {
       doc(db, 'appConfig', 'companyInfo'),
       (docSnap) => {
         if (docSnap.exists()) {
-          setCompanyInfo(docSnap.data() as CompanyInfo);
+          setCompanyInfo({ ...INITIAL_STATE, ...docSnap.data() } as CompanyInfo);
         }
         setLoading(false);
       },

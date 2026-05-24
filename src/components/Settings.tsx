@@ -3,7 +3,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db, uploadFile, handleFirestoreError, OperationType } from '../firebase';
 import { compressImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Image as ImageIcon, Check, Loader2, X, Euro, ChevronRight, Building2, Save, Clock, Sun, Snowflake, AlertTriangle, Plus, Settings2, Bell, Calendar as CalendarIcon } from 'lucide-react';
+import { Image as ImageIcon, Check, Loader2, X, Euro, ChevronRight, Building2, Save, Clock, Sun, Snowflake, AlertTriangle, Plus, Settings2, Bell, Calendar as CalendarIcon, Stamp } from 'lucide-react';
 import { PriceListEditor } from './PriceListEditor';
 import { useCompanyInfo, CompanyInfo } from '../hooks/useCompanyInfo';
 import { useTermSettings, TermSettings } from '../hooks/useTermSettings';
@@ -21,6 +21,8 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
+  const [isUploadingStamp, setIsUploadingStamp] = useState(false);
+  const [stampUploadStatus, setStampUploadStatus] = useState<'idle'|'success'|'error'>('idle');
   
   const { companyInfo, saveCompanyInfo, loading: companyLoading } = useCompanyInfo();
   const { termSettings, saveTermSettings, loading: termsLoading } = useTermSettings();
@@ -168,6 +170,26 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
       handleFirestoreError(error, OperationType.WRITE, 'appConfig/appearance');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleStampChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingStamp(true);
+    setStampUploadStatus('idle');
+    try {
+      const compressedBlob = await compressImage(file);
+      const storagePath = 'settings/stamp.png';
+      const downloadUrl = await uploadFile(compressedBlob as File, storagePath);
+      setLocalCompanyInfo({...localCompanyInfo, stampUrl: downloadUrl});
+      setStampUploadStatus('success');
+      setTimeout(() => setStampUploadStatus('idle'), 3000);
+    } catch (error) {
+      console.error('Error uploading stamp:', error);
+      setStampUploadStatus('error');
+    } finally {
+      setIsUploadingStamp(false);
     }
   };
 
@@ -442,6 +464,36 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                               onChange={e => setLocalCompanyInfo({...localCompanyInfo, iban: e.target.value})}
                             />
                           </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Analyzátor spalín — model</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              placeholder="napr. Testo 330-2"
+                              value={localCompanyInfo.analyzerModel}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, analyzerModel: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Analyzátor spalín — sériové č. / kalibrácia</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              placeholder="napr. SN12345 / 01.2025"
+                              value={localCompanyInfo.analyzerSerial}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, analyzerSerial: e.target.value})}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Detektor plynu — model</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              placeholder="napr. Fluke PTi120"
+                              value={localCompanyInfo.gasDetectorModel}
+                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, gasDetectorModel: e.target.value})}
+                            />
+                          </div>
                         </div>
                         <div className="flex justify-end pt-4">
                           <button 
@@ -468,6 +520,115 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                           </button>
                         </div>
                       </form>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+
+          <section className="space-y-4 pt-4 border-t border-white/5">
+            <button 
+              onClick={() => toggleSection('stamp')}
+              className="w-full flex items-center justify-between text-white/80 
+                         hover:text-white transition-colors group p-2 rounded-xl 
+                         hover:bg-white/5"
+            >
+              <div className="flex items-center gap-2">
+                <ImageIcon size={20} className="text-[#3A87AD]" />
+                <h3 className="text-lg font-bold">Pečiatka a podpis</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {localCompanyInfo.stampUrl && (
+                  <span className="text-xs text-emerald-400 font-bold">✓ Nahraná</span>
+                )}
+                <ChevronRight 
+                  size={20} 
+                  className={`text-white/20 group-hover:text-white/40 transition-transform 
+                              duration-300 ${activeSection === 'stamp' ? 'rotate-90' : ''}`} 
+                />
+              </div>
+            </button>
+            
+            <AnimatePresence>
+              {activeSection === 'stamp' && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-4 mt-2">
+                    <p className="text-sm text-white/60">
+                      Naskenovaná pečiatka a podpis — použije sa pri elektronickom 
+                      odosielaní PDF protokolu.
+                    </p>
+                    
+                    {localCompanyInfo.stampUrl && (
+                      <div className="flex justify-center p-4 bg-white rounded-2xl">
+                        <img 
+                          src={localCompanyInfo.stampUrl} 
+                          alt="Pečiatka" 
+                          className="max-h-24 object-contain"
+                        />
+                      </div>
+                    )}
+
+                    <div className="relative">
+                      <input
+                        type="file"
+                        id="stamp-upload"
+                        accept="image/*"
+                        onChange={handleStampChange}
+                        disabled={isUploadingStamp}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="stamp-upload"
+                        className={`flex items-center justify-center gap-3 p-5 rounded-xl 
+                          border-2 border-dashed transition-all cursor-pointer
+                          ${isUploadingStamp 
+                            ? 'border-[#3A87AD]/50 bg-[#3A87AD]/5 cursor-not-allowed' 
+                            : stampUploadStatus === 'success' 
+                              ? 'border-green-500/50 bg-green-500/5' 
+                              : 'border-white/20 hover:border-[#3A87AD]/50 hover:bg-white/5'}`}
+                      >
+                        {isUploadingStamp ? (
+                          <>
+                            <Loader2 className="animate-spin text-[#3A87AD]" size={20} />
+                            <span className="text-sm font-bold">Nahrávam...</span>
+                          </>
+                        ) : stampUploadStatus === 'success' ? (
+                          <>
+                            <Check className="text-green-500" size={20} />
+                            <span className="text-sm font-bold text-green-500">
+                              Pečiatka nahraná ✓
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <ImageIcon className="text-white/40" size={20} />
+                            <span className="text-sm font-bold">
+                              {localCompanyInfo.stampUrl 
+                                ? 'Zmeniť pečiatku / podpis' 
+                                : 'Nahrať scan pečiatky a podpisu'}
+                            </span>
+                          </>
+                        )}
+                      </label>
+                    </div>
+
+                    {localCompanyInfo.stampUrl && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={(e) => handleCompanySave(e as any)}
+                          className="btn-primary"
+                        >
+                          <Save size={18} />
+                          <span>Uložiť</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </motion.div>

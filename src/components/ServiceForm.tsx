@@ -96,6 +96,7 @@ export const ServiceForm = ({
     faultFixed: initialData?.faultFixed || false,
     hasFlueGasAnalysis: initialData?.hasFlueGasAnalysis || false,
     spareParts: initialData?.spareParts || [],
+    operationalStatus: initialData?.operationalStatus || 'capable',
     useAsInstallDate: false,
     showSpareParts: false,
     burnerCheck: initialData?.burnerCheck ?? null,
@@ -673,6 +674,37 @@ export const ServiceForm = ({
             <div className="border-t border-white/5 pt-6">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <CheckCircle2 size={20} className="text-[#3A87AD]" />
+                Záver prehliadky
+              </h3>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData({...formData, operationalStatus: 'capable'})}
+                  className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all border-2 ${
+                    formData.operationalStatus === 'capable'
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                      : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30'
+                  }`}
+                >
+                  ✓ Schopné prevádzky
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({...formData, operationalStatus: 'incapable'})}
+                  className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all border-2 ${
+                    formData.operationalStatus === 'incapable'
+                      ? 'bg-red-500/20 border-red-500 text-red-400'
+                      : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30'
+                  }`}
+                >
+                  ✗ Neschopné prevádzky
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-white/5 pt-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <CheckCircle2 size={20} className="text-[#3A87AD]" />
                 Kontrolný zoznam
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
@@ -801,6 +833,7 @@ export const ServiceForm = ({
               const signature = canvas ? trimCanvas(canvas).toDataURL('image/png') : undefined;
               onSubmit({
                 ...formData, 
+                operationalStatus: formData.operationalStatus as 'capable' | 'incapable',
                 status: ServiceStatus.COMPLETED, 
                 photo: photo || undefined,
                 photoBefore: photoBefore || undefined,

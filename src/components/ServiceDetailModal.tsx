@@ -3,6 +3,8 @@ import { Trash2, Download, ArrowLeft, CheckCircle2, AlertCircle, PenTool, Wrench
 import { motion } from 'framer-motion';
 import { ServiceRecord, Boiler, Customer } from '../types';
 import { generateServicePDF } from '../utils/pdf';
+import { useCompanyInfo } from '../hooks/useCompanyInfo';
+import { useAuth } from '../hooks/useAuth';
 
 interface ServiceDetailModalProps {
   service: ServiceRecord;
@@ -23,11 +25,29 @@ export const ServiceDetailModal = ({
 }: ServiceDetailModalProps) => {
   if (!service) return null;
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showStampModal, setShowStampModal] = useState(false);
+  const [useStamp, setUseStamp] = useState<boolean | null>(null);
+  const { companyInfo } = useCompanyInfo();
+  const { user } = useAuth();
 
   const handleDownloadPDF = async () => {
+    // Ak má firma nahranú pečiatku, opýtame sa
+    if (companyInfo.stampUrl) {
+      setShowStampModal(true);
+      return;
+    }
+    // Ak nemá pečiatku, generuj bez nej
+    await generatePDF(false);
+  };
+
+  const generatePDF = async (withStamp: boolean) => {
     setIsGenerating(true);
     try {
-      await generateServicePDF(service, boiler, customer);
+      await generateServicePDF(
+        service, boiler, customer, companyInfo,
+        user?.displayName || '',
+        withStamp ? companyInfo.stampUrl : ''
+      );
     } catch (error) {
       console.error("PDF generation failed", error);
     } finally {
@@ -263,6 +283,43 @@ export const ServiceDetailModal = ({
             </button>
           </div>
         </div>
+
+        {showStampModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="card w-full max-w-sm p-6 space-y-5"
+            >
+              <div className="text-center space-y-2">
+                <div className="text-3xl">🖊️</div>
+                <h3 className="text-lg font-bold text-white">Vložiť pečiatku a podpis?</h3>
+                <p className="text-sm text-white/50">
+                  Chcete do protokolu vložiť naskenovanú pečiatku a podpis firmy?
+                </p>
+              </div>
+              {companyInfo.stampUrl && (
+                <div className="flex justify-center p-3 bg-white rounded-xl">
+                  <img src={companyInfo.stampUrl} alt="Pečiatka" className="max-h-16 object-contain" />
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowStampModal(false); generatePDF(false); }}
+                  className="flex-1 py-3 rounded-xl border border-white/10 bg-white/5 text-white/70 font-bold hover:bg-white/10 transition-colors text-sm"
+                >
+                  Nie — prázdne pole
+                </button>
+                <button
+                  onClick={() => { setShowStampModal(false); generatePDF(true); }}
+                  className="flex-1 py-3 rounded-xl bg-[#3A87AD] text-white font-bold hover:bg-[#2e6d8a] transition-colors text-sm"
+                >
+                  Áno — vložiť
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </motion.div>
     </div>
   );

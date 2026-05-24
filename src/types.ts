@@ -56,6 +56,7 @@ export interface ServiceRecord {
   photoConnection?: string;
   photoChimney?: string;
   spareParts?: { name: string; quantity: number }[];
+  operationalStatus?: 'capable' | 'incapable';
 }
 
 export interface Boiler {
