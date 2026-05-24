@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db, uploadFile, handleFirestoreError, OperationType } from '../firebase';
 import { compressImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,6 +40,13 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
   const [calendarSaveStatus, setCalendarSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   const [seasonSaveStatus, setSeasonSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   const [errorCodeSaveStatus, setErrorCodeSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
+  const [openingHours, setOpeningHours] = useState({
+    monFri: '8:00 - 17:00',
+    saturday: '9:00 - 12:00',
+    sunday: 'Zatvorené'
+  });
+  const [openingHoursSaveStatus, setOpeningHoursSaveStatus] = 
+    useState<'idle' | 'saving' | 'success'>('idle');
 
   const [newErrorCode, setNewErrorCode] = useState<Omit<ErrorCode, 'id' | 'createdAt'>>({
     brand: '',
@@ -92,6 +99,21 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     if (seasonConfig) setLocalSeasonConfig(seasonConfig);
   }, [seasonConfig]);
 
+  useEffect(() => {
+    const unsub = onSnapshot(
+      doc(db, 'settings', 'global'),
+      (docSnap) => {
+        if (docSnap.exists() && docSnap.data().openingHours) {
+          setOpeningHours(docSnap.data().openingHours);
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, 'settings/global');
+      }
+    );
+    return () => unsub();
+  }, []);
+
   const toggleSection = (section: string) => {
     setActiveSection(activeSection === section ? null : section);
   };
@@ -135,6 +157,25 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     } catch (error) {
       console.error('Error saving company info:', error);
       setSaveStatus('idle');
+    }
+  };
+
+  const handleOpeningHoursSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOpeningHoursSaveStatus('saving');
+    try {
+      await setDoc(
+        doc(db, 'settings', 'global'), 
+        { openingHours }, 
+        { merge: true }
+      );
+      setOpeningHoursSaveStatus('success');
+      toast.success('Aktualizované');
+      setTimeout(() => setOpeningHoursSaveStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Error saving opening hours:', error);
+      setOpeningHoursSaveStatus('idle');
+      handleFirestoreError(error, OperationType.WRITE, 'settings/global');
     }
   };
 
@@ -840,6 +881,108 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                         </form>
                       </div>
                     )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+
+          {/* Opening Hours Section */}
+          <section className="space-y-4 pt-4 border-t border-white/5">
+            <button 
+              onClick={() => toggleSection('openingHours')}
+              className="w-full flex items-center justify-between text-white/80 
+                         hover:text-white transition-colors group p-2 rounded-xl 
+                         hover:bg-white/5"
+            >
+              <div className="flex items-center gap-2">
+                <Clock size={20} className="text-[#3A87AD]" />
+                <h3 className="text-lg font-bold">Otváracie hodiny</h3>
+              </div>
+              <ChevronRight 
+                size={20} 
+                className={`text-white/20 group-hover:text-white/40 transition-transform 
+                            duration-300 ${activeSection === 'openingHours' ? 'rotate-90' : ''}`} 
+              />
+            </button>
+            
+            <AnimatePresence>
+              {activeSection === 'openingHours' && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-1 pt-2">
+                    <form onSubmit={handleOpeningHoursSave} className="space-y-6">
+                      <p className="text-xs text-white/40">
+                        Tieto hodiny sa zobrazia na webovej stránke sptherm.sk
+                      </p>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-white/40 uppercase tracking-wider">
+                            Pondelok - Piatok
+                          </label>
+                          <input 
+                            type="text" 
+                            className="input-field" 
+                            placeholder="napr. 8:00 - 17:00"
+                            value={openingHours.monFri}
+                            onChange={e => setOpeningHours({...openingHours, monFri: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-white/40 uppercase tracking-wider">
+                            Sobota
+                          </label>
+                          <input 
+                            type="text" 
+                            className="input-field" 
+                            placeholder="napr. 9:00 - 12:00 alebo Zatvorené"
+                            value={openingHours.saturday}
+                            onChange={e => setOpeningHours({...openingHours, saturday: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-white/40 uppercase tracking-wider">
+                            Nedeľa
+                          </label>
+                          <input 
+                            type="text" 
+                            className="input-field" 
+                            placeholder="napr. Zatvorené"
+                            value={openingHours.sunday}
+                            onChange={e => setOpeningHours({...openingHours, sunday: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end pt-2">
+                        <button 
+                          type="submit" 
+                          disabled={openingHoursSaveStatus === 'saving'}
+                          className={`btn-primary min-w-[140px] justify-center 
+                            ${openingHoursSaveStatus === 'success' ? 'bg-green-600 hover:bg-green-600' : ''}`}
+                        >
+                          {openingHoursSaveStatus === 'saving' ? (
+                            <>
+                              <Loader2 className="animate-spin" size={18} />
+                              <span>Ukladám...</span>
+                            </>
+                          ) : openingHoursSaveStatus === 'success' ? (
+                            <>
+                              <Check size={18} />
+                              <span>Uložené ✓</span>
+                            </>
+                          ) : (
+                            <>
+                              <Save size={18} />
+                              <span>Uložiť</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </motion.div>
               )}

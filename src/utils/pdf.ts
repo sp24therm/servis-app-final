@@ -43,8 +43,21 @@ export const generateServicePDF = async (
   const formatAddress = (address: string): string => {
     if (!address) return '-';
     const parts = address.split(',').map(p => p.trim());
-    // Zobraz max 4 časti: č.d., ulica, mesto, PSČ
-    return parts.slice(0, 4).join(', ');
+    // Nájdi PSČ — je to časť ktorá obsahuje len čísla a medzery (formát: 900 46)
+    const pscIndex = parts.findIndex(p => /^\d{3}\s?\d{2}$/.test(p));
+    if (pscIndex !== -1) {
+      // Zobraz: č.d., ulica, mesto, PSČ
+      // Mesto je časť pred PSČ ktorá nie je okres (neobsahuje "okres" ani "kraj")
+      const filtered = parts.filter(p => 
+        !/okres|kraj/i.test(p)
+      );
+      return filtered.slice(0, 4).join(', ');
+    }
+    // Fallback: prvé 4 časti bez okresu a kraja
+    return parts
+      .filter(p => !/okres|kraj/i.test(p))
+      .slice(0, 4)
+      .join(', ');
   };
 
   // For mobile/iPhone compatibility, we open a new window immediately to avoid popup blockers
@@ -89,9 +102,9 @@ export const generateServicePDF = async (
 
   // SEKCIA 1 — Hlavička (header)
   const headerHtml = `
-    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; margin-bottom: 20px; border-bottom: 3.5px solid #1e3a5f;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; margin-bottom: 14px; border-bottom: 3.5px solid #1e3a5f;">
       <div style="display: flex; align-items: center; gap: 14px;">
-        ${logoBase64 ? `<img src="${logoBase64}" style="height: 55px; width: auto;" />` : ''}
+        ${logoBase64 ? `<img src="${logoBase64}" style="height: 72px; width: auto;" />` : ''}
         <div>
           <div style="font-size: 18px; font-weight: bold; color: #1e3a5f; line-height: 1.2;">${companyInfo?.name || 'SP Therm s.r.o.'}</div>
           <div style="font-size: 10px; color: #475569; margin-top: 4px; line-height: 1.4;">
@@ -111,7 +124,7 @@ export const generateServicePDF = async (
 
   // SEKCIA 2 — Identifikácia
   const customerDeviceInfoHtml = `
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px; background-color: #f8fafc; padding: 14px 18px; border-radius: 8px; border: 1px solid #e2e8f0;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 14px; background-color: #f8fafc; padding: 14px 18px; border-radius: 8px; border: 1px solid #e2e8f0;">
       <div>
         <div style="font-size: 10px; font-weight: bold; color: #1e3a5f; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1.5px solid #1e3a5f; padding-bottom: 3px;">Prevádzkovateľ</div>
         <div style="font-size: 14px; font-weight: bold; color: #0f172a; margin-bottom: 4px;">${customer.name}</div>
@@ -132,7 +145,7 @@ export const generateServicePDF = async (
 
   // SEKCIA — Dátum a typ (Kompaktnejšia verzia)
   const interventionDetailsHtml = `
-    <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+    <div style="display: flex; gap: 12px; margin-bottom: 14px;">
       <div style="flex: 1; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px;">
         <div style="font-size: 9px; font-weight: bold; color: #0369a1; text-transform: uppercase; margin-bottom: 3px;">Dátum zásahu</div>
         <div style="font-size: 14px; font-weight: bold; color: #1e293b;">${formatDate(service.date)}</div>
@@ -151,7 +164,7 @@ export const generateServicePDF = async (
   // SEKCIA 3 — Merací prístroj
   const analyzerInfoHtml = `
     <div style="background: #f1f5f9; border-radius: 6px; padding: 8px 14px; 
-                margin-bottom: 20px; font-size: 10px; color: #475569; 
+                margin-bottom: 14px; font-size: 10px; color: #475569; 
                 display: flex; gap: 24px; flex-wrap: wrap;">
       <span><strong>Analyzátor spalín:</strong> ${companyInfo?.analyzerModel || '_______________'}</span>
       <span><strong>Sér. č. / Kalibrácia:</strong> ${companyInfo?.analyzerSerial || '_______________'}</span>
@@ -356,7 +369,7 @@ export const generateServicePDF = async (
 
   // SEKCIA 5 — Použité náhradné diely
   const sparePartsHtml = (service.spareParts && service.spareParts.length > 0) ? `
-    <div style="margin-bottom: 20px;">
+    <div style="margin-bottom: 14px;">
       <div style="font-size: 11px; font-weight: bold; color: #1e3a5f; text-transform: uppercase; margin-bottom: 10px; border-left: 3px solid #1e3a5f; padding-left: 8px;">Použité náhradné diely</div>
       <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #cbd5e1;">
         <thead>
@@ -380,15 +393,15 @@ export const generateServicePDF = async (
   // SEKCIA 6 — Zhodnotenie
   const isCapable = service.operationalStatus !== 'incapable';
   const hodnotenie = isCapable 
-    ? 'ZARIADENIE JE SCHOPNÉ BEZPEČNEJ PREVÁDZKY' 
-    : 'ZARIADENIE NIE JE SCHOPNÉ BEZPEČNEJ PREVÁDZKY';
+    ? 'ZARIADENIE JE SCHOPNÉ PREVÁDZKY' 
+    : 'ZARIADENIE NIE JE SCHOPNÉ PREVÁDZKY';
   const hodnotenieFarba = isCapable ? '#f0fdf4' : '#fef2f2';
   const hodnotenieBorder = isCapable ? '#22c55e' : '#ef4444';
   const hodnotenieFarbaText = isCapable ? '#16a34a' : '#dc2626';
 
   const evaluationHtml = `
     <div style="border: 2px solid ${hodnotenieBorder}; border-radius: 8px; 
-                padding: 12px 16px; background: ${hodnotenieFarba}; margin-bottom: 12px;">
+                padding: 12px 16px; background: ${hodnotenieFarba}; margin-bottom: 14px;">
       <div style="font-size: 9px; font-weight: bold; color: #64748b; 
                   text-transform: uppercase; margin-bottom: 4px;">
         Záver odbornej prehliadky
@@ -401,7 +414,7 @@ export const generateServicePDF = async (
     <div style="
       font-size: 10px; 
       color: #475569; 
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       padding-left: 4px;
       line-height: 1.4;
     ">
@@ -412,7 +425,7 @@ export const generateServicePDF = async (
 
   // SEKCIA 7 — Podpisy
   const signaturesHtml = `
-    <div style="font-size: 10px; color: #64748b; margin-top: 25px; margin-bottom: 15px; 
+    <div style="font-size: 10px; color: #64748b; margin-top: 20px; margin-bottom: 12px; 
                 line-height: 1.4; font-style: italic; border-top: 1px solid #e2e8f0; 
                 padding-top: 10px;">
       Podpisom potvrdzujem prevzatie servisného protokolu a oboznámenie sa 
@@ -420,45 +433,40 @@ export const generateServicePDF = async (
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; 
-                align-items: start; margin-top: 10px;">
+                align-items: start; margin-top: 8px;">
       
       <!-- Zákazník -->
       <div style="text-align: center;">
-        <div style="border-bottom: 1px solid #cbd5e1; height: 80px; 
+        <div style="border-bottom: 1px solid #cbd5e1; height: 70px; 
                     display: flex; align-items: center; justify-content: center; 
-                    margin-bottom: 6px;">
+                    margin-bottom: 4px;">
           ${service.signature 
-            ? `<img src="${service.signature}" style="max-height: 75px; max-width: 180px;" />`
+            ? `<img src="${service.signature}" style="max-height: 65px; max-width: 180px;" />`
             : ''}
         </div>
-        <div style="font-size: 9px; color: #1e293b; font-weight: bold;">
-          ${customer.name}
-        </div>
-        <div style="font-size: 8px; color: #64748b; margin-top: 2px;">
-          Prevádzkovateľ / Zákazník
+        <div style="display: flex; justify-content: space-between; 
+                    font-size: 8.5px; color: #64748b; padding: 0 2px;">
+          <span>Prevádzkovateľ / Zákazník</span>
+          <span style="font-weight: bold; color: #1e293b;">${customer.name}</span>
         </div>
       </div>
 
       <!-- Pečiatka a podpis technika -->
       <div style="text-align: center;">
-        <div style="
-          border-bottom: 1px solid #cbd5e1; 
-          height: 80px;
-          display: flex; 
-          align-items: center; 
-          justify-content: center;
-          margin-bottom: 6px;
-        ">
+        <div style="border-bottom: 1px solid #cbd5e1; height: 70px;
+                    display: flex; align-items: center; justify-content: center;
+                    margin-bottom: 4px;">
           ${stampBase64
             ? `<img src="${stampBase64}" 
-                   style="max-height: 75px; max-width: 200px; object-fit: contain;" />`
+                   style="max-height: 65px; max-width: 200px; object-fit: contain;" />`
             : ''}
         </div>
-        <div style="font-size: 9px; color: #1e293b; font-weight: bold;">
-          ${technicianName || companyInfo?.name || 'SP Therm s.r.o.'}
-        </div>
-        <div style="font-size: 8px; color: #64748b; margin-top: 2px;">
-          Servisný technik · Číslo osvedčenia: _______________
+        <div style="display: flex; justify-content: space-between; 
+                    font-size: 8.5px; color: #64748b; padding: 0 2px;">
+          <span>Servisný technik</span>
+          <span style="font-weight: bold; color: #1e293b;">
+            ${technicianName || companyInfo?.name || 'SP Therm s.r.o.'}
+          </span>
         </div>
       </div>
     </div>
@@ -466,7 +474,9 @@ export const generateServicePDF = async (
 
   // SEKCIA 8 — Pätica
   const footerHtml = `
-    <div style="text-align: center; font-size: 8.5px; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 30px; padding-top: 10px; font-weight: 500;">
+    <div style="text-align: center; font-size: 8.5px; color: #94a3b8; 
+                border-top: 1px solid #e2e8f0; margin-top: 12px; 
+                padding-top: 8px; font-weight: 500;">
       Správa vyhotovená v súlade s § 16 ods. 2 vyhl. č. 508/2009 Z. z. · Platnosť: 12 mesiacov od dátumu vystavenia · ${companyInfo?.name || 'SP Therm s.r.o.'}
     </div>
   `;
