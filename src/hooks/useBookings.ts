@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, getDocs, runTransaction, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Booking, Customer, Boiler } from '../types';
 
@@ -20,10 +20,27 @@ export const useBookings = () => {
 
   const confirmBooking = async (booking: Booking) => {
     try {
-      // 1. Update booking status
-      await updateDoc(doc(db, 'bookings', booking.id), {
-        status: 'confirmed',
-        confirmedAt: serverTimestamp()
+      const slotId = `${booking.preferredDate}_${booking.preferredTime.replace(':', '')}`;
+      const slotRef = doc(db, 'slots', slotId);
+      const bookingRef = doc(db, 'bookings', booking.id);
+
+      await runTransaction(db, async (transaction) => {
+        const slotSnap = await transaction.get(slotRef);
+        if (slotSnap.exists()) {
+          throw new Error('SLOT_TAKEN');
+        }
+
+        transaction.update(bookingRef, {
+          status: 'confirmed',
+          confirmedAt: serverTimestamp()
+        });
+
+        transaction.set(slotRef, {
+          date: booking.preferredDate,
+          time: booking.preferredTime,
+          bookingId: booking.id,
+          createdAt: new Date().toISOString()
+        });
       });
 
       // 2. Check if customer exists by phone
@@ -69,10 +86,34 @@ export const useBookings = () => {
 
   const cancelBooking = async (id: string) => {
     try {
-      await updateDoc(doc(db, 'bookings', id), {
+      const bookingDocRef = doc(db, 'bookings', id);
+      const bookingSnap = await getDoc(bookingDocRef);
+      
+      let preferredDate = '';
+      let preferredTime = '';
+
+      if (bookingSnap.exists()) {
+        const data = bookingSnap.data();
+        preferredDate = data.preferredDate;
+        preferredTime = data.preferredTime;
+      } else {
+        const localBooking = bookings.find(b => b.id === id);
+        if (localBooking) {
+          preferredDate = localBooking.preferredDate;
+          preferredTime = localBooking.preferredTime;
+        }
+      }
+
+      await updateDoc(bookingDocRef, {
         status: 'cancelled',
         cancelledAt: serverTimestamp()
       });
+
+      if (preferredDate && preferredTime) {
+        const slotId = `${preferredDate}_${preferredTime.replace(':', '')}`;
+        await deleteDoc(doc(db, 'slots', slotId));
+      }
+
       return true;
     } catch (error) {
       console.error('Error cancelling booking:', error);
