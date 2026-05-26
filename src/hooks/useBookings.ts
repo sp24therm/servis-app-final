@@ -20,26 +20,12 @@ export const useBookings = () => {
 
   const confirmBooking = async (booking: Booking) => {
     try {
-      const slotId = `${booking.preferredDate}_${booking.preferredTime.replace(':', '')}`;
-      const slotRef = doc(db, 'slots', slotId);
       const bookingRef = doc(db, 'bookings', booking.id);
 
       await runTransaction(db, async (transaction) => {
-        const slotSnap = await transaction.get(slotRef);
-        if (slotSnap.exists()) {
-          throw new Error('SLOT_TAKEN');
-        }
-
         transaction.update(bookingRef, {
           status: 'confirmed',
           confirmedAt: serverTimestamp()
-        });
-
-        transaction.set(slotRef, {
-          date: booking.preferredDate,
-          time: booking.preferredTime,
-          bookingId: booking.id,
-          createdAt: new Date().toISOString()
         });
       });
 
