@@ -8,7 +8,6 @@ import { PriceListEditor } from './PriceListEditor';
 import { useCompanyInfo, CompanyInfo } from '../hooks/useCompanyInfo';
 import { useTermSettings, TermSettings } from '../hooks/useTermSettings';
 import { useSeasonConfig, SeasonConfig } from '../hooks/useSeasonConfig';
-import { useCalendarConfig, CalendarConfig } from '../hooks/useCalendarConfig';
 import { useErrorCodes, ErrorCode } from '../hooks/useErrorCodes';
 import { toast } from 'sonner';
 
@@ -16,37 +15,49 @@ interface SettingsProps {
   onBackgroundUpdate: (url: string) => void;
 }
 
+const DAYS_MAP = [
+  { key: 'monday', slovakName: 'Pondelok' },
+  { key: 'tuesday', slovakName: 'Utorok' },
+  { key: 'wednesday', slovakName: 'Streda' },
+  { key: 'thursday', slovakName: 'Štvrtok' },
+  { key: 'friday', slovakName: 'Piatok' },
+  { key: 'saturday', slovakName: 'Sobota' },
+  { key: 'sunday', slovakName: 'Nedeľa' }
+] as const;
+
 export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
   const [isUploadingStamp, setIsUploadingStamp] = useState(false);
   const [stampUploadStatus, setStampUploadStatus] = useState<'idle'|'success'|'error'>('idle');
   
   const { companyInfo, saveCompanyInfo, loading: companyLoading } = useCompanyInfo();
   const { termSettings, saveTermSettings, loading: termsLoading } = useTermSettings();
-  const { config: calendarConfig, saveCalendarConfig, loading: calendarLoading } = useCalendarConfig();
   const { config: seasonConfig, saveSeasonConfig, loading: seasonLoading, currentSeason, autoSeason } = useSeasonConfig();
   const { errorCodes, brands, addErrorCode, addBrand, loading: errorCodesLoading } = useErrorCodes();
 
   const [localCompanyInfo, setLocalCompanyInfo] = useState<CompanyInfo>(companyInfo);
   const [localTermSettings, setLocalTermSettings] = useState<TermSettings>(termSettings);
-  const [localCalendarConfig, setLocalCalendarConfig] = useState<CalendarConfig>(calendarConfig);
   const [localSeasonConfig, setLocalSeasonConfig] = useState<SeasonConfig>(seasonConfig);
   
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   const [termsSaveStatus, setTermsSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
-  const [calendarSaveStatus, setCalendarSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   const [seasonSaveStatus, setSeasonSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   const [errorCodeSaveStatus, setErrorCodeSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
-  const [openingHours, setOpeningHours] = useState({
-    monFri: '8:00 - 17:00',
-    saturday: '9:00 - 12:00',
-    sunday: 'Zatvorené'
+  
+  const [slotDuration, setSlotDuration] = useState<number>(150);
+  const [bufferBeforeBooking, setBufferBeforeBooking] = useState<number>(240);
+  const [workingHours, setWorkingHours] = useState<Record<string, { enabled: boolean, from: string, to: string }>>({
+    monday:    { enabled: true, from: '08:00', to: '17:00' },
+    tuesday:   { enabled: true, from: '08:00', to: '17:00' },
+    wednesday: { enabled: true, from: '08:00', to: '17:00' },
+    thursday:  { enabled: true, from: '08:00', to: '17:00' },
+    friday:    { enabled: true, from: '08:00', to: '17:00' },
+    saturday:  { enabled: false, from: '09:00', to: '14:00' },
+    sunday:    { enabled: false, from: '09:00', to: '14:00' }
   });
-  const [openingHoursSaveStatus, setOpeningHoursSaveStatus] = 
-    useState<'idle' | 'saving' | 'success'>('idle');
+  const [newCalendarSaveStatus, setNewCalendarSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
 
   const [newErrorCode, setNewErrorCode] = useState<Omit<ErrorCode, 'id' | 'createdAt'>>({
     brand: '',
@@ -59,41 +70,12 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
   const [isAddingBrand, setIsAddingBrand] = useState(false);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-        toast.success('Google Kalendár úspešne prepojený');
-        // Trigger sync
-        fetch(`${import.meta.env.VITE_FUNCTIONS_URL}/manualSyncCalendarSlots`, { method: 'POST' });
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  const handleConnectGoogle = async () => {
-    setIsConnectingGoogle(true);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_FUNCTIONS_URL}/getGoogleAuthUrl`);
-      const { url } = await response.json();
-      window.open(url, 'google_auth', 'width=600,height=700');
-    } catch (error) {
-      toast.error('Nepodarilo sa získať prihlasovaciu adresu');
-    } finally {
-      setIsConnectingGoogle(false);
-    }
-  };
-
-  useEffect(() => {
     if (companyInfo) setLocalCompanyInfo(companyInfo);
   }, [companyInfo]);
 
   useEffect(() => {
     if (termSettings) setLocalTermSettings(termSettings);
   }, [termSettings]);
-
-  useEffect(() => {
-    if (calendarConfig) setLocalCalendarConfig(calendarConfig);
-  }, [calendarConfig]);
 
   useEffect(() => {
     if (seasonConfig) setLocalSeasonConfig(seasonConfig);
@@ -103,8 +85,17 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     const unsub = onSnapshot(
       doc(db, 'settings', 'global'),
       (docSnap) => {
-        if (docSnap.exists() && docSnap.data().openingHours) {
-          setOpeningHours(docSnap.data().openingHours);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.slotDuration !== undefined) {
+            setSlotDuration(data.slotDuration);
+          }
+          if (data.bufferBeforeBooking !== undefined) {
+            setBufferBeforeBooking(data.bufferBeforeBooking);
+          }
+          if (data.workingHours) {
+            setWorkingHours(data.workingHours);
+          }
         }
       },
       (error) => {
@@ -132,20 +123,6 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     }
   };
 
-  const handleCalendarSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCalendarSaveStatus('saving');
-    try {
-      await saveCalendarConfig(localCalendarConfig);
-      setCalendarSaveStatus('success');
-      toast.success('Aktualizované');
-      setTimeout(() => setCalendarSaveStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Error saving calendar config:', error);
-      setCalendarSaveStatus('idle');
-    }
-  };
-
   const handleCompanySave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveStatus('saving');
@@ -160,21 +137,22 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     }
   };
 
-  const handleOpeningHoursSave = async (e: React.FormEvent) => {
+  const handleNewCalendarSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setOpeningHoursSaveStatus('saving');
+    setNewCalendarSaveStatus('saving');
     try {
-      await setDoc(
-        doc(db, 'settings', 'global'), 
-        { openingHours }, 
-        { merge: true }
-      );
-      setOpeningHoursSaveStatus('success');
-      toast.success('Aktualizované');
-      setTimeout(() => setOpeningHoursSaveStatus('idle'), 2000);
+      await setDoc(doc(db, 'settings', 'global'), {
+        slotDuration,
+        bufferBeforeBooking,
+        workingHours
+      }, { merge: true });
+
+      setNewCalendarSaveStatus('success');
+      toast.success('Kalendár úspešne aktualizovaný ✓');
+      setTimeout(() => setNewCalendarSaveStatus('idle'), 2000);
     } catch (error) {
-      console.error('Error saving opening hours:', error);
-      setOpeningHoursSaveStatus('idle');
+      console.error('Error saving new calendar config:', error);
+      setNewCalendarSaveStatus('idle');
       handleFirestoreError(error, OperationType.WRITE, 'settings/global');
     }
   };
@@ -351,41 +329,10 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
             </AnimatePresence>
           </section>
 
-          {/* Price List Editor Section */}
-          <section className="space-y-4 pt-4 border-t border-white/5">
-            <button 
-              onClick={() => toggleSection('pricelist')}
-              className="w-full flex items-center justify-between text-white/80 hover:text-white transition-colors group p-2 rounded-xl hover:bg-white/5"
-            >
-              <div className="flex items-center gap-2">
-                <Euro size={20} className="text-[#3A87AD]" />
-                <h3 className="text-lg font-bold">Správa cenníka</h3>
-              </div>
-              <ChevronRight 
-                size={20} 
-                className={`text-white/20 group-hover:text-white/40 transition-transform duration-300 ${activeSection === 'pricelist' ? 'rotate-90' : ''}`} 
-              />
-            </button>
-            
-            <AnimatePresence>
-              {activeSection === 'pricelist' && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="p-1 pt-2">
-                    <PriceListEditor />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </section>
-
           {/* Company Info Section */}
           <section className="space-y-4 pt-4 border-t border-white/5">
             <button 
+              type="button"
               onClick={() => toggleSection('company')}
               className="w-full flex items-center justify-between text-white/80 hover:text-white transition-colors group p-2 rounded-xl hover:bg-white/5"
             >
@@ -413,154 +360,239 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                         <Loader2 className="animate-spin text-[#3A87AD]" size={24} />
                       </div>
                     ) : (
-                      <form onSubmit={handleCompanySave} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Názov firmy</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              value={localCompanyInfo.name}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, name: e.target.value})}
-                            />
+                      <div className="space-y-8">
+                        {/* Company Profile Form */}
+                        <form onSubmit={handleCompanySave} className="space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Názov firmy</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                value={localCompanyInfo.name}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, name: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">IČO</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                value={localCompanyInfo.ico}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, ico: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">DIČ</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                value={localCompanyInfo.dic}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, dic: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">IČ DPH</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                value={localCompanyInfo.icDph}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, icDph: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Ulica</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                value={localCompanyInfo.street}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, street: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Mesto</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                value={localCompanyInfo.city}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, city: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">PSČ</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                value={localCompanyInfo.zip}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, zip: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Telefón</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                value={localCompanyInfo.phone}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, phone: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Email</label>
+                              <input 
+                                type="email" 
+                                className="input-field" 
+                                value={localCompanyInfo.email}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, email: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">IBAN</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                value={localCompanyInfo.iban}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, iban: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Analyzátor spalín — model</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                placeholder="napr. Testo 330-2"
+                                value={localCompanyInfo.analyzerModel}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, analyzerModel: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Analyzátor spalín — sériové č. / kalibrácia</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                placeholder="napr. SN12345 / 01.2025"
+                                value={localCompanyInfo.analyzerSerial}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, analyzerSerial: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Detektor plynu — model</label>
+                              <input 
+                                type="text" 
+                                className="input-field" 
+                                placeholder="napr. Fluke PTi120"
+                                value={localCompanyInfo.gasDetectorModel}
+                                onChange={e => setLocalCompanyInfo({...localCompanyInfo, gasDetectorModel: e.target.value})}
+                              />
+                            </div>
                           </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">IČO</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              value={localCompanyInfo.ico}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, ico: e.target.value})}
-                            />
+                          <div className="flex justify-end pt-4">
+                            <button 
+                              type="submit" 
+                              disabled={saveStatus === 'saving'}
+                              className={`btn-primary min-w-[140px] justify-center ${saveStatus === 'success' ? 'bg-green-600 hover:bg-green-600' : ''}`}
+                            >
+                              {saveStatus === 'saving' ? (
+                                <>
+                                  <Loader2 className="animate-spin" size={18} />
+                                  <span>Ukladám...</span>
+                                </>
+                              ) : saveStatus === 'success' ? (
+                                <>
+                                  <Check size={18} />
+                                  <span>Uložené ✓</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Save size={18} />
+                                  <span>Uložiť</span>
+                                </>
+                              )}
+                            </button>
                           </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">DIČ</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              value={localCompanyInfo.dic}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, dic: e.target.value})}
+                        </form>
+
+                        {/* Divider + Pečiatka a podpis */}
+                        <div className="pt-8 border-t border-white/5 space-y-4">
+                          <h4 className="text-sm font-bold text-white uppercase tracking-wider">Pečiatka a podpis</h4>
+                          <p className="text-sm text-white/60">
+                            Naskenovaná pečiatka a podpis — použije sa pri elektronickom 
+                            odosielaní PDF protokolu.
+                          </p>
+                          
+                          {localCompanyInfo.stampUrl && (
+                            <div className="flex justify-center p-4 bg-white rounded-2xl">
+                              <img 
+                                src={localCompanyInfo.stampUrl} 
+                                alt="Pečiatka" 
+                                className="max-h-24 object-contain"
+                              />
+                            </div>
+                          )}
+
+                          <div className="relative">
+                            <input
+                              type="file"
+                              id="stamp-upload"
+                              accept="image/*"
+                              onChange={handleStampChange}
+                              disabled={isUploadingStamp}
+                              className="hidden"
                             />
+                            <label
+                              htmlFor="stamp-upload"
+                              className={`flex items-center justify-center gap-3 p-5 rounded-xl 
+                                border-2 border-dashed transition-all cursor-pointer
+                                ${isUploadingStamp 
+                                  ? 'border-[#3A87AD]/50 bg-[#3A87AD]/5 cursor-not-allowed' 
+                                  : stampUploadStatus === 'success' 
+                                    ? 'border-green-500/50 bg-green-500/5' 
+                                    : 'border-white/20 hover:border-[#3A87AD]/50 hover:bg-white/5'}`}
+                            >
+                              {isUploadingStamp ? (
+                                <>
+                                  <Loader2 className="animate-spin text-[#3A87AD]" size={20} />
+                                  <span className="text-sm font-bold">Nahrávam...</span>
+                                </>
+                              ) : stampUploadStatus === 'success' ? (
+                                <>
+                                  <Check className="text-green-500" size={20} />
+                                  <span className="text-sm font-bold text-green-500">
+                                    Pečiatka nahraná ✓
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <ImageIcon className="text-white/40" size={20} />
+                                  <span className="text-sm font-bold">
+                                    {localCompanyInfo.stampUrl 
+                                      ? 'Zmeniť pečiatku / podpis' 
+                                      : 'Nahrať scan pečiatky a podpisu'}
+                                  </span>
+                                </>
+                              )}
+                            </label>
                           </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">IČ DPH</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              value={localCompanyInfo.icDph}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, icDph: e.target.value})}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Ulica</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              value={localCompanyInfo.street}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, street: e.target.value})}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Mesto</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              value={localCompanyInfo.city}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, city: e.target.value})}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">PSČ</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              value={localCompanyInfo.zip}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, zip: e.target.value})}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Telefón</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              value={localCompanyInfo.phone}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, phone: e.target.value})}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Email</label>
-                            <input 
-                              type="email" 
-                              className="input-field" 
-                              value={localCompanyInfo.email}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, email: e.target.value})}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">IBAN</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              value={localCompanyInfo.iban}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, iban: e.target.value})}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Analyzátor spalín — model</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              placeholder="napr. Testo 330-2"
-                              value={localCompanyInfo.analyzerModel}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, analyzerModel: e.target.value})}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Analyzátor spalín — sériové č. / kalibrácia</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              placeholder="napr. SN12345 / 01.2025"
-                              value={localCompanyInfo.analyzerSerial}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, analyzerSerial: e.target.value})}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Detektor plynu — model</label>
-                            <input 
-                              type="text" 
-                              className="input-field" 
-                              placeholder="napr. Fluke PTi120"
-                              value={localCompanyInfo.gasDetectorModel}
-                              onChange={e => setLocalCompanyInfo({...localCompanyInfo, gasDetectorModel: e.target.value})}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-end pt-4">
-                          <button 
-                            type="submit" 
-                            disabled={saveStatus === 'saving'}
-                            className={`btn-primary min-w-[140px] justify-center ${saveStatus === 'success' ? 'bg-green-600 hover:bg-green-600' : ''}`}
-                          >
-                            {saveStatus === 'saving' ? (
-                              <>
-                                <Loader2 className="animate-spin" size={18} />
-                                <span>Ukladám...</span>
-                              </>
-                            ) : saveStatus === 'success' ? (
-                              <>
-                                <Check size={18} />
-                                <span>Uložené ✓</span>
-                              </>
-                            ) : (
-                              <>
+
+                          {localCompanyInfo.stampUrl && (
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={(e) => handleCompanySave(e as any)}
+                                className="btn-primary"
+                              >
                                 <Save size={18} />
-                                <span>Uložiť</span>
-                              </>
-                            )}
-                          </button>
+                                <span>Uložiť pečiatku</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </form>
+
+                        {/* Divider + Správa cenníka */}
+                        <div className="pt-8 border-t border-white/5 space-y-4">
+                          <h4 className="text-sm font-bold text-white uppercase tracking-wider">Správa cenníka</h4>
+                          <PriceListEditor />
+                        </div>
+                      </div>
                     )}
                   </div>
                 </motion.div>
@@ -568,133 +600,28 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
             </AnimatePresence>
           </section>
 
+          {/* Kalendár & Rezervácie Section */}
           <section className="space-y-4 pt-4 border-t border-white/5">
             <button 
-              onClick={() => toggleSection('stamp')}
+              type="button"
+              onClick={() => toggleSection('calendar_reservations')}
               className="w-full flex items-center justify-between text-white/80 
                          hover:text-white transition-colors group p-2 rounded-xl 
                          hover:bg-white/5"
             >
               <div className="flex items-center gap-2">
-                <ImageIcon size={20} className="text-[#3A87AD]" />
-                <h3 className="text-lg font-bold">Pečiatka a podpis</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {localCompanyInfo.stampUrl && (
-                  <span className="text-xs text-emerald-400 font-bold">✓ Nahraná</span>
-                )}
-                <ChevronRight 
-                  size={20} 
-                  className={`text-white/20 group-hover:text-white/40 transition-transform 
-                              duration-300 ${activeSection === 'stamp' ? 'rotate-90' : ''}`} 
-                />
-              </div>
-            </button>
-            
-            <AnimatePresence>
-              {activeSection === 'stamp' && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="p-5 bg-white/5 rounded-2xl border border-white/10 space-y-4 mt-2">
-                    <p className="text-sm text-white/60">
-                      Naskenovaná pečiatka a podpis — použije sa pri elektronickom 
-                      odosielaní PDF protokolu.
-                    </p>
-                    
-                    {localCompanyInfo.stampUrl && (
-                      <div className="flex justify-center p-4 bg-white rounded-2xl">
-                        <img 
-                          src={localCompanyInfo.stampUrl} 
-                          alt="Pečiatka" 
-                          className="max-h-24 object-contain"
-                        />
-                      </div>
-                    )}
-
-                    <div className="relative">
-                      <input
-                        type="file"
-                        id="stamp-upload"
-                        accept="image/*"
-                        onChange={handleStampChange}
-                        disabled={isUploadingStamp}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor="stamp-upload"
-                        className={`flex items-center justify-center gap-3 p-5 rounded-xl 
-                          border-2 border-dashed transition-all cursor-pointer
-                          ${isUploadingStamp 
-                            ? 'border-[#3A87AD]/50 bg-[#3A87AD]/5 cursor-not-allowed' 
-                            : stampUploadStatus === 'success' 
-                              ? 'border-green-500/50 bg-green-500/5' 
-                              : 'border-white/20 hover:border-[#3A87AD]/50 hover:bg-white/5'}`}
-                      >
-                        {isUploadingStamp ? (
-                          <>
-                            <Loader2 className="animate-spin text-[#3A87AD]" size={20} />
-                            <span className="text-sm font-bold">Nahrávam...</span>
-                          </>
-                        ) : stampUploadStatus === 'success' ? (
-                          <>
-                            <Check className="text-green-500" size={20} />
-                            <span className="text-sm font-bold text-green-500">
-                              Pečiatka nahraná ✓
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <ImageIcon className="text-white/40" size={20} />
-                            <span className="text-sm font-bold">
-                              {localCompanyInfo.stampUrl 
-                                ? 'Zmeniť pečiatku / podpis' 
-                                : 'Nahrať scan pečiatky a podpisu'}
-                            </span>
-                          </>
-                        )}
-                      </label>
-                    </div>
-
-                    {localCompanyInfo.stampUrl && (
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={(e) => handleCompanySave(e as any)}
-                          className="btn-primary"
-                        >
-                          <Save size={18} />
-                          <span>Uložiť</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </section>
-
-          {/* Term Settings Section */}
-          <section className="space-y-4 pt-4 border-t border-white/5">
-            <button 
-              onClick={() => toggleSection('terms')}
-              className="w-full flex items-center justify-between text-white/80 hover:text-white transition-colors group p-2 rounded-xl hover:bg-white/5"
-            >
-              <div className="flex items-center gap-2">
-                <Clock size={20} className="text-[#3A87AD]" />
-                <h3 className="text-lg font-bold">Nastavenia termínov</h3>
+                <CalendarIcon size={20} className="text-[#3A87AD]" />
+                <h3 className="text-lg font-bold">Kalendár & Rezervácie</h3>
               </div>
               <ChevronRight 
                 size={20} 
-                className={`text-white/20 group-hover:text-white/40 transition-transform duration-300 ${activeSection === 'terms' ? 'rotate-90' : ''}`} 
+                className={`text-white/20 group-hover:text-white/40 transition-transform 
+                            duration-300 ${activeSection === 'calendar_reservations' ? 'rotate-90' : ''}`} 
               />
             </button>
             
             <AnimatePresence>
-              {activeSection === 'terms' && (
+              {activeSection === 'calendar_reservations' && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
@@ -702,7 +629,7 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                   className="overflow-hidden"
                 >
                   <div className="p-1 pt-2">
-                    {termsLoading || calendarLoading ? (
+                    {termsLoading ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="animate-spin text-[#3A87AD]" size={24} />
                       </div>
@@ -804,68 +731,147 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                           </div>
                         </form>
 
-                        {/* Calendar Config */}
-                        <form onSubmit={handleCalendarSave} className="space-y-6 pt-10 border-t border-white/5">
-                          <h4 className="text-sm font-bold text-white uppercase tracking-wider">Pracovné dni a časy</h4>
+                        {/* Divider */}
+                        <div className="border-t border-white/5 pt-10" />
+
+                        {/* Pracovná doba a rezervácie */}
+                        <form onSubmit={handleNewCalendarSave} className="space-y-6">
+                          <h4 className="text-sm font-bold text-white uppercase tracking-wider">Pracovná doba a rezervácie</h4>
                           
-                          <div className="space-y-4">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Pracovné dni</label>
-                            <div className="flex flex-wrap gap-2">
-                              {['Ne', 'Po', 'Ut', 'St', 'Št', 'Pi', 'So'].map((day, index) => (
-                                <button
-                                  key={day}
-                                  type="button"
-                                  onClick={() => {
-                                    const newDays = localCalendarConfig.workingDays.includes(index)
-                                      ? localCalendarConfig.workingDays.filter(d => d !== index)
-                                      : [...localCalendarConfig.workingDays, index].sort();
-                                    setLocalCalendarConfig({...localCalendarConfig, workingDays: newDays});
-                                  }}
-                                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
-                                    localCalendarConfig.workingDays.includes(index)
-                                      ? 'bg-[#3A87AD] border-[#3A87AD] text-white shadow-lg'
-                                      : 'bg-white/5 border-white/10 text-white/40 hover:text-white/60'
-                                  }`}
-                                >
-                                  {day}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Začiatok práce</label>
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider block">
+                                Dĺžka servisu (minúty)
+                              </label>
                               <input 
-                                type="time" 
+                                type="number" 
+                                step={30}
+                                min={60}
+                                max={480}
                                 className="input-field" 
-                                value={localCalendarConfig.startTime}
-                                onChange={e => setLocalCalendarConfig({...localCalendarConfig, startTime: e.target.value})}
+                                value={slotDuration}
+                                onChange={e => setSlotDuration(parseInt(e.target.value) || 150)}
+                                required
                               />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Koniec práce</label>
+                              <label className="text-xs font-bold text-white/40 uppercase tracking-wider block">
+                                Buffer pred rezerváciou (minúty)
+                              </label>
                               <input 
-                                type="time" 
+                                type="number" 
+                                step={30}
+                                min={60}
+                                max={480}
                                 className="input-field" 
-                                value={localCalendarConfig.endTime}
-                                onChange={e => setLocalCalendarConfig({...localCalendarConfig, endTime: e.target.value})}
+                                value={bufferBeforeBooking}
+                                onChange={e => setBufferBeforeBooking(parseInt(e.target.value) || 240)}
+                                required
                               />
                             </div>
                           </div>
 
-                          <div className="flex justify-end pt-4">
+                          <div className="space-y-3">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-wider block">
+                              Pracovná doba
+                            </label>
+                            
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left border-collapse">
+                                <thead>
+                                  <tr className="border-b border-white/5 text-xs font-bold text-white/30 uppercase tracking-wider">
+                                    <th className="py-2">Deň</th>
+                                    <th className="py-2 text-center">Aktívny</th>
+                                    <th className="py-2">Od</th>
+                                    <th className="py-2">Do</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                  {DAYS_MAP.map(({ key, slovakName }) => {
+                                    const dayConfig = workingHours[key] || { enabled: false, from: '08:00', to: '17:00' };
+                                    return (
+                                      <tr key={key} className="text-sm">
+                                        <td className="py-3 font-semibold text-white/80">{slovakName}</td>
+                                        <td className="py-3 text-center">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setWorkingHours({
+                                                ...workingHours,
+                                                [key]: {
+                                                  ...dayConfig,
+                                                  enabled: !dayConfig.enabled
+                                                }
+                                              });
+                                            }}
+                                            className={`mx-auto w-12 h-6 rounded-full transition-colors relative block ${dayConfig.enabled ? 'bg-[#3A87AD]' : 'bg-white/10'}`}
+                                          >
+                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${dayConfig.enabled ? 'left-7' : 'left-1'}`} />
+                                          </button>
+                                        </td>
+                                        <td className="py-3">
+                                          {dayConfig.enabled ? (
+                                            <input 
+                                              type="time" 
+                                              className="input-field max-w-[120px]" 
+                                              value={dayConfig.from}
+                                              onChange={e => {
+                                                setWorkingHours({
+                                                  ...workingHours,
+                                                  [key]: {
+                                                    ...dayConfig,
+                                                    from: e.target.value
+                                                  }
+                                                });
+                                              }}
+                                              required
+                                            />
+                                          ) : (
+                                            <span className="text-white/20 italic">-</span>
+                                          )}
+                                        </td>
+                                        <td className="py-3">
+                                          {dayConfig.enabled ? (
+                                            <input 
+                                              type="time" 
+                                              className="input-field max-w-[120px]" 
+                                              value={dayConfig.to}
+                                              onChange={e => {
+                                                setWorkingHours({
+                                                  ...workingHours,
+                                                  [key]: {
+                                                    ...dayConfig,
+                                                    to: e.target.value
+                                                  }
+                                                });
+                                              }}
+                                              required
+                                            />
+                                          ) : (
+                                            <span className="text-white/20 italic">Zatvorené</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end pt-2">
                             <button 
                               type="submit" 
-                              disabled={calendarSaveStatus === 'saving'}
-                              className={`btn-primary min-w-[140px] justify-center ${calendarSaveStatus === 'success' ? 'bg-green-600 hover:bg-green-600' : ''}`}
+                              disabled={newCalendarSaveStatus === 'saving'}
+                              className={`btn-primary min-w-[140px] justify-center 
+                                ${newCalendarSaveStatus === 'success' ? 'bg-green-600 hover:bg-green-600' : ''}`}
                             >
-                              {calendarSaveStatus === 'saving' ? (
+                              {newCalendarSaveStatus === 'saving' ? (
                                 <>
                                   <Loader2 className="animate-spin" size={18} />
                                   <span>Ukladám...</span>
                                 </>
-                              ) : calendarSaveStatus === 'success' ? (
+                              ) : newCalendarSaveStatus === 'success' ? (
                                 <>
                                   <Check size={18} />
                                   <span>Uložené ✓</span>
@@ -873,7 +879,7 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                               ) : (
                                 <>
                                   <Save size={18} />
-                                  <span>Uložiť kalendár</span>
+                                  <span>Uložiť prac. dobu</span>
                                 </>
                               )}
                             </button>
@@ -881,108 +887,6 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                         </form>
                       </div>
                     )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </section>
-
-          {/* Opening Hours Section */}
-          <section className="space-y-4 pt-4 border-t border-white/5">
-            <button 
-              onClick={() => toggleSection('openingHours')}
-              className="w-full flex items-center justify-between text-white/80 
-                         hover:text-white transition-colors group p-2 rounded-xl 
-                         hover:bg-white/5"
-            >
-              <div className="flex items-center gap-2">
-                <Clock size={20} className="text-[#3A87AD]" />
-                <h3 className="text-lg font-bold">Otváracie hodiny</h3>
-              </div>
-              <ChevronRight 
-                size={20} 
-                className={`text-white/20 group-hover:text-white/40 transition-transform 
-                            duration-300 ${activeSection === 'openingHours' ? 'rotate-90' : ''}`} 
-              />
-            </button>
-            
-            <AnimatePresence>
-              {activeSection === 'openingHours' && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="p-1 pt-2">
-                    <form onSubmit={handleOpeningHoursSave} className="space-y-6">
-                      <p className="text-xs text-white/40">
-                        Tieto hodiny sa zobrazia na webovej stránke sptherm.sk
-                      </p>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-white/40 uppercase tracking-wider">
-                            Pondelok - Piatok
-                          </label>
-                          <input 
-                            type="text" 
-                            className="input-field" 
-                            placeholder="napr. 8:00 - 17:00"
-                            value={openingHours.monFri}
-                            onChange={e => setOpeningHours({...openingHours, monFri: e.target.value})}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-white/40 uppercase tracking-wider">
-                            Sobota
-                          </label>
-                          <input 
-                            type="text" 
-                            className="input-field" 
-                            placeholder="napr. 9:00 - 12:00 alebo Zatvorené"
-                            value={openingHours.saturday}
-                            onChange={e => setOpeningHours({...openingHours, saturday: e.target.value})}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold text-white/40 uppercase tracking-wider">
-                            Nedeľa
-                          </label>
-                          <input 
-                            type="text" 
-                            className="input-field" 
-                            placeholder="napr. Zatvorené"
-                            value={openingHours.sunday}
-                            onChange={e => setOpeningHours({...openingHours, sunday: e.target.value})}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end pt-2">
-                        <button 
-                          type="submit" 
-                          disabled={openingHoursSaveStatus === 'saving'}
-                          className={`btn-primary min-w-[140px] justify-center 
-                            ${openingHoursSaveStatus === 'success' ? 'bg-green-600 hover:bg-green-600' : ''}`}
-                        >
-                          {openingHoursSaveStatus === 'saving' ? (
-                            <>
-                              <Loader2 className="animate-spin" size={18} />
-                              <span>Ukladám...</span>
-                            </>
-                          ) : openingHoursSaveStatus === 'success' ? (
-                            <>
-                              <Check size={18} />
-                              <span>Uložené ✓</span>
-                            </>
-                          ) : (
-                            <>
-                              <Save size={18} />
-                              <span>Uložiť</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </form>
                   </div>
                 </motion.div>
               )}

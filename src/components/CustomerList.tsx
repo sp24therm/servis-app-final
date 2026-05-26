@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Phone, ChevronRight, TrendingUp, CheckCircle2, Trash2, Calendar } from 'lucide-react';
+import { Plus, Search, Phone, ChevronRight, TrendingUp, CheckCircle2, Trash2, Calendar, MessageSquare } from 'lucide-react';
+import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -40,6 +41,17 @@ export const CustomerList = ({
 }: CustomerListProps) => {
   const [search, setSearch] = useState('');
   const { termSettings } = useTermSettings();
+
+  const sendServiceReminderSms = (customer: Customer) => {
+    const text = `Dobrý deň ${customer.name}, blíži sa termín Vašej ročnej prehliadky kotla. Termín si môžete rezervovať na www.sptherm.sk alebo Vás v najbližších dňoch budeme kontaktovať. Váš spoľahlivý partner pre vykurovanie – SP Therm s.r.o.`;
+    const phone = customer.phone?.replace(/\s+/g, '') || '';
+    if (!phone) {
+      toast.warning('Zákazník nemá telefónne číslo');
+      return;
+    }
+    const isIphone = /iPhone/i.test(navigator.userAgent);
+    window.location.href = `sms:${phone}${isIphone ? '&' : '?'}body=${encodeURIComponent(text)}`;
+  };
 
   const handleOpenEdit = (e: React.MouseEvent, customer: Customer) => {
     e.stopPropagation();
@@ -312,6 +324,19 @@ export const CustomerList = ({
                 </div>
               </div>
               <div className="flex items-center gap-4 ml-auto">
+                {info.category === 'BLÍŽIACE SA' && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      sendServiceReminderSms(customer);
+                    }}
+                    className="p-2 text-white/20 hover:text-[#3A87AD] hover:bg-[#3A87AD]/10 rounded-lg transition-all"
+                    title="Pripomienka SMS"
+                  >
+                    <MessageSquare size={18} />
+                  </button>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

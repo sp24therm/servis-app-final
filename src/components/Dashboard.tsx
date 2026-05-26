@@ -7,8 +7,10 @@ import {
   PieChart as PieChartIcon,
   History,
   MapPin,
-  Map as MapIcon
+  Map as MapIcon,
+  MessageSquare
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   PieChart, 
@@ -49,6 +51,17 @@ export const Dashboard = React.memo(({
       `https://maps.google.com/?q=${encoded}`,
       '_blank'
     );
+  };
+
+  const sendServiceReminderSms = (customer: Customer) => {
+    const text = `Dobrý deň ${customer.name}, blíži sa termín Vašej ročnej prehliadky kotla. Termín si môžete rezervovať na www.sptherm.sk alebo Vás v najbližších dňoch budeme kontaktovať. Váš spoľahlivý partner pre vykurovanie – SP Therm s.r.o.`;
+    const phone = customer.phone?.replace(/\s+/g, '') || '';
+    if (!phone) {
+      toast.warning('Zákazník nemá telefónne číslo');
+      return;
+    }
+    const isIphone = /iPhone/i.test(navigator.userAgent);
+    window.location.href = `sms:${phone}${isIphone ? '&' : '?'}body=${encodeURIComponent(text)}`;
   };
 
   const categorizedBoilers = useMemo(() => {
@@ -267,6 +280,19 @@ export const Dashboard = React.memo(({
                       </div>
                     </div>
                     <div className="flex items-center gap-4 ml-auto">
+                      {status === 'upcoming' && customer && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            sendServiceReminderSms(customer);
+                          }}
+                          className="p-2 rounded-lg text-white/20 hover:text-[#3A87AD] hover:bg-[#3A87AD]/10 transition-all"
+                          title="Pripomienka SMS"
+                        >
+                          <MessageSquare size={18} />
+                        </button>
+                      )}
                       <div className="flex flex-col items-end flex-shrink-0">
                         <div 
                           className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"

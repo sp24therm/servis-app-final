@@ -31,6 +31,7 @@ async function getCalendarClient(serviceAccountJson: string) {
 export const onBookingConfirmed = onDocumentUpdated(
   { 
     document: "bookings/{bookingId}", 
+    database: "ai-studio-f0fbd47e-303b-40fe-88c1-505382c75ba3",
     secrets: [serviceAccountSecret, workCalendarIdSecret] 
   }, 
   async (event) => {
@@ -86,3 +87,60 @@ export const onBookingConfirmed = onDocumentUpdated(
     }
   }
 );
+
+/**
+ * FUNKCIA — onBookingRescheduled
+ * Triggered when a booking is rescheduled (its date or time changes) and has an associated calendar event ID
+ */
+export const onBookingRescheduled = onDocumentUpdated(
+  {
+    document: "bookings/{bookingId}",
+    database: "ai-studio-f0fbd47e-303b-40fe-88c1-505382c75ba3",
+    secrets: [serviceAccountSecret, workCalendarIdSecret]
+  },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+
+    if (!before || !after) {
+      logger.warn("No data found in booking update event.");
+      return;
+    }
+
+    // Fire only when BOTH conditions are true:
+    // 1. booking has calendarEventId (was already added to calendar)
+    // 2. preferredDate OR preferredTime changed between before and after
+    if (after.calendarEventId && 
+        (before.preferredDate !== after.preferredDate || before.preferredTime !== after.preferredTime)) {
+      
+      logger.info(`Booking ${event.params.bookingId} rescheduled/updated. Updating Google Calendar event ${after.calendarEventId}...`);
+      
+      try {
+        const calendar = await getCalendarClient(serviceAccountSecret.value());
+        
+        const startDateTime = `${after.preferredDate}T${after.preferredTime}:00`;
+        const endDateTime = new Date(new Date(startDateTime).getTime() + 120 * 60 * 1000).toISOString();
+
+        await calendar.events.patch({
+          calendarId: workCalendarIdSecret.value(),
+          eventId: after.calendarEventId,
+          requestBody: {
+            start: {
+              dateTime: new Date(startDateTime).toISOString(),
+              timeZone: "Europe/Bratislava",
+            },
+            end: {
+              dateTime: endDateTime,
+              timeZone: "Europe/Bratislava",
+            },
+          },
+        });
+
+        logger.info(`Calendar event ${after.calendarEventId} updated successfully.`);
+      } catch (error) {
+        logger.error(`Error in onBookingRescheduled for event ${after.calendarEventId}:`, error);
+      }
+    }
+  }
+);
+
