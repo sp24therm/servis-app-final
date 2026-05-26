@@ -141,10 +141,31 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     e.preventDefault();
     setNewCalendarSaveStatus('saving');
     try {
+      const formatHours = (day: string) => {
+        const d = workingHours[day];
+        if (!d?.enabled) return 'Zatvorené';
+        return `${d.from} - ${d.to}`;
+      };
+
+      const monFri = (() => {
+        const days = ['monday','tuesday','wednesday','thursday','friday'];
+        const enabled = days.filter(d => workingHours[d]?.enabled);
+        if (enabled.length === 0) return 'Zatvorené';
+        const first = workingHours[enabled[0]];
+        return `${first.from} - ${first.to}`;
+      })();
+
+      const openingHours = {
+        monFri,
+        saturday: formatHours('saturday'),
+        sunday: formatHours('sunday')
+      };
+
       await setDoc(doc(db, 'settings', 'global'), {
         slotDuration,
         bufferBeforeBooking,
-        workingHours
+        workingHours,
+        openingHours
       }, { merge: true });
 
       setNewCalendarSaveStatus('success');
