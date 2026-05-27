@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { LayoutDashboard, Users, History, Phone, Settings as SettingsIcon, LogOut, User as UserIcon, ChevronDown, Inbox, Bell, CheckCircle2 } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { onSnapshot, doc } from 'firebase/firestore';
+import { onSnapshot, doc, collection, query, where } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LOGO_URL } from '../config/constants';
 import { PriceList } from './PriceList';
@@ -17,9 +17,23 @@ export const Sidebar = ({ activeTab, setActiveTab, isVisible }: SidebarProps) =>
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isPriceListOpen, setIsPriceListOpen] = useState(false);
   const [hasCalendarToken, setHasCalendarToken] = useState<boolean | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const mobileUserMenuRef = useRef<HTMLDivElement>(null);
   const user = auth.currentUser;
+
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(collection(db, 'bookings'), where('status', '==', 'pending'));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setPendingCount(snapshot.size);
+    }, (error) => {
+      console.error("Error listening to pending bookings:", error);
+    });
+
+    return () => unsub();
+  }, [user]);
 
   useEffect(() => {
     // Listen to calendar tokens in Firestore
@@ -179,7 +193,35 @@ export const Sidebar = ({ activeTab, setActiveTab, isVisible }: SidebarProps) =>
                   : 'text-white/40 hover:text-white/60'
               }`}
             >
-              <item.icon size={20} />
+              {item.id === 'bookings' ? (
+                <div style={{ position: 'relative', display: 'inline-flex' }}>
+                  <item.icon size={20} />
+                  {pendingCount > 0 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '-6px',
+                      right: '-6px',
+                      background: '#EF4444',
+                      color: '#fff',
+                      borderRadius: '999px',
+                      fontSize: '10px',
+                      fontWeight: '700',
+                      minWidth: '16px',
+                      height: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 3px',
+                      lineHeight: 1,
+                      border: '1.5px solid #0f0f0f'
+                    }}>
+                      {pendingCount > 9 ? '9+' : pendingCount}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <item.icon size={20} />
+              )}
               <span className="text-[10px] font-medium">{item.label}</span>
             </button>
           ))}

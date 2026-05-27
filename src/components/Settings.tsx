@@ -10,6 +10,7 @@ import { useTermSettings, TermSettings } from '../hooks/useTermSettings';
 import { useSeasonConfig, SeasonConfig } from '../hooks/useSeasonConfig';
 import { useErrorCodes, ErrorCode } from '../hooks/useErrorCodes';
 import { toast } from 'sonner';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 interface SettingsProps {
   onBackgroundUpdate: (url: string) => void;
@@ -19,6 +20,7 @@ interface SettingsProps {
 
 export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const { registerPush, isRegistering, isRegistered } = usePushNotifications();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isUploadingStamp, setIsUploadingStamp] = useState(false);
@@ -1340,13 +1342,26 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                       </div>
                       
                       <button 
-                        onClick={() => {
-                          toast.info('Funkcia Web Push vyžaduje konfiguráciu Service Workera a VAPID kľúčov.');
-                        }}
-                        className="btn-primary w-full justify-center py-4 rounded-xl"
+                        onClick={registerPush}
+                        disabled={isRegistering || isRegistered}
+                        className="btn-primary w-full justify-center py-4 rounded-xl flex items-center gap-2"
                       >
-                        <Bell size={20} />
-                        <span className="font-bold uppercase">Povoliť upozornenia</span>
+                        {isRegistering ? (
+                          <>
+                            <Loader2 className="animate-spin" size={20} />
+                            <span>Aktivujem...</span>
+                          </>
+                        ) : isRegistered ? (
+                          <>
+                            <Check size={20} />
+                            <span>Notifikácie aktívne ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <Bell size={20} />
+                            <span className="font-bold uppercase">Povoliť upozornenia</span>
+                          </>
+                        )}
                       </button>
                       
                       <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">

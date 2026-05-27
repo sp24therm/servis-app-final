@@ -1,8 +1,9 @@
 import * as admin from "firebase-admin";
+import { getMessaging } from "firebase-admin/messaging";
 import { google } from "googleapis";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
-import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 
 admin.initializeApp();
@@ -199,5 +200,55 @@ export const getBlockedSlots = onCall(
     }
   }
 );
+
+export const onNewBooking = onDocumentCreated(
+  {
+    document: "bookings/{bookingId}",
+    database: "ai-studio-f0fbd47e-303b-40fe-88c1-505382c75ba3",
+  },
+  async (event) => {
+    const booking = event.data?.data();
+    if (!booking) return;
+
+    try {
+      const tokensSnap = await db.collection('pushTokens').get();
+      if (tokensSnap.empty) return;
+
+      const sends = tokensSnap.docs.map(async (tokenDoc) => {
+        const { token } = tokenDoc.data();
+        try {
+          await getMessaging().send({
+            token,
+            notification: {
+              title: 'Nová objednávka',
+              body: `${booking.name} – ${booking.preferredDate} o ${booking.preferredTime}`
+            },
+            webpush: {
+              notification: {
+                icon: 'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0463998550.firebasestorage.app/o/public%2Flogo.png?alt=media&token=41ca22c4-cbbc-4b1b-9ba1-7b178e3baef5',
+                badge: 'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0463998550.firebasestorage.app/o/public%2Flogo.png?alt=media&token=41ca22c4-cbbc-4b1b-9ba1-7b178e3baef5',
+                click_action: 'https://spservis.pages.dev'
+              }
+            }
+          });
+        } catch (err: any) {
+          if (err.code === 'messaging/registration-token-not-registered' ||
+              err.code === 'messaging/invalid-registration-token') {
+            await tokenDoc.ref.delete();
+            logger.info(`Deleted expired token: ${tokenDoc.id}`);
+          } else {
+            logger.error(`Push error for token ${tokenDoc.id}:`, err);
+          }
+        }
+      });
+
+      await Promise.allSettled(sends);
+      logger.info(`Push sent to ${tokensSnap.size} devices for booking ${event.params.bookingId}`);
+    } catch (error) {
+      logger.error('onNewBooking error:', error);
+    }
+  }
+);
+
 
 
