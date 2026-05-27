@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, getRedirectResult, User } from 'firebase/auth';
+import { onAuthStateChanged, getRedirectResult, User, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth } from '../firebase';
 
 export const useAuth = () => {
@@ -10,8 +10,16 @@ export const useAuth = () => {
     // First handle redirect result, then start auth listener
     const init = async () => {
       try {
+        // Ensure persistence is set before anything else
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (e) {
+        console.warn('Persistence setup failed:', e);
+      }
+
+      try {
         const result = await getRedirectResult(auth);
         if (result?.user) {
+          console.log('Redirect login successful:', result.user.email);
           setUser(result.user);
         }
       } catch (error: any) {
