@@ -1,7 +1,8 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 import firebaseConfigFile from '../firebase-applet-config.json';
 
 // Use environment variables if available, otherwise fallback to config file
@@ -19,12 +20,15 @@ const firestoreDatabaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID || firebas
 // Initialize Firebase once
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence)
+  .catch((error) => console.error('Auth persistence error:', error));
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
 }, firestoreDatabaseId);
 export const storage = getStorage(app);
+export const functions = getFunctions(app, 'us-central1');
 
 export enum OperationType {
   CREATE = 'create',
