@@ -24,6 +24,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Boiler, Customer, ServiceRecord } from '../types';
 import { MapBounds } from './MapBounds';
 import { getBoilerStatus, getStatusColor, getStatusLabel, BoilerStatus } from '../utils/boilerUtils';
+import { formatAddress } from '../utils/addressUtils';
 
 interface DashboardProps {
   boilers: Boiler[];
@@ -274,7 +275,7 @@ export const Dashboard = React.memo(({
                             onClick={(e) => { e.stopPropagation(); openNavigation(boiler.address); }}
                           >
                             <MapPin size={12} />
-                            <span className="truncate">{boiler.address}</span>
+                            <span className="truncate">{formatAddress(boiler.address)}</span>
                           </span>
                         </div>
                       </div>
@@ -461,7 +462,7 @@ export const Dashboard = React.memo(({
                       >
                         <MapPin size={12} />
                       </span>
-                      <span className="truncate">{boiler.address}</span>
+                      <span className="truncate">{formatAddress(boiler.address)}</span>
                     </div>
                     <button 
                       onClick={() => onSelectCustomer(boiler.customerId)}

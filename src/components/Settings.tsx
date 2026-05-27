@@ -15,15 +15,7 @@ interface SettingsProps {
   onBackgroundUpdate: (url: string) => void;
 }
 
-const DAYS_MAP = [
-  { key: 'monday', slovakName: 'Pondelok' },
-  { key: 'tuesday', slovakName: 'Utorok' },
-  { key: 'wednesday', slovakName: 'Streda' },
-  { key: 'thursday', slovakName: 'Štvrtok' },
-  { key: 'friday', slovakName: 'Piatok' },
-  { key: 'saturday', slovakName: 'Sobota' },
-  { key: 'sunday', slovakName: 'Nedeľa' }
-] as const;
+
 
 export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -48,15 +40,9 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
   
   const [slotDuration, setSlotDuration] = useState<number>(150);
   const [bufferBeforeBooking, setBufferBeforeBooking] = useState<number>(240);
-  const [workingHours, setWorkingHours] = useState<Record<string, { enabled: boolean, from: string, to: string }>>({
-    monday:    { enabled: true, from: '08:00', to: '17:00' },
-    tuesday:   { enabled: true, from: '08:00', to: '17:00' },
-    wednesday: { enabled: true, from: '08:00', to: '17:00' },
-    thursday:  { enabled: true, from: '08:00', to: '17:00' },
-    friday:    { enabled: true, from: '08:00', to: '17:00' },
-    saturday:  { enabled: false, from: '09:00', to: '14:00' },
-    sunday:    { enabled: false, from: '09:00', to: '14:00' }
-  });
+  const [whMonFri, setWhMonFri] = useState({ enabled: true, from: '08:00', to: '17:00' });
+  const [whSaturday, setWhSaturday] = useState({ enabled: false, from: '09:00', to: '14:00' });
+  const [whSunday, setWhSunday] = useState({ enabled: false, from: '09:00', to: '14:00' });
   const [newCalendarSaveStatus, setNewCalendarSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
 
   const [newErrorCode, setNewErrorCode] = useState<Omit<ErrorCode, 'id' | 'createdAt'>>({
@@ -94,7 +80,9 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
             setBufferBeforeBooking(data.bufferBeforeBooking);
           }
           if (data.workingHours) {
-            setWorkingHours(data.workingHours);
+            if (data.workingHours.monday) setWhMonFri(data.workingHours.monday);
+            if (data.workingHours.saturday) setWhSaturday(data.workingHours.saturday);
+            if (data.workingHours.sunday) setWhSunday(data.workingHours.sunday);
           }
         }
       },
@@ -141,14 +129,24 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
     e.preventDefault();
     setNewCalendarSaveStatus('saving');
     try {
+      const workingHours = {
+        monday: whMonFri,
+        tuesday: whMonFri,
+        wednesday: whMonFri,
+        thursday: whMonFri,
+        friday: whMonFri,
+        saturday: whSaturday,
+        sunday: whSunday
+      };
+
       const formatHours = (day: string) => {
-        const d = workingHours[day];
+        const d = workingHours[day as keyof typeof workingHours];
         if (!d?.enabled) return 'Zatvorené';
         return `${d.from} - ${d.to}`;
       };
 
       const monFri = (() => {
-        const days = ['monday','tuesday','wednesday','thursday','friday'];
+        const days = ['monday','tuesday','wednesday','thursday','friday'] as const;
         const enabled = days.filter(d => workingHours[d]?.enabled);
         if (enabled.length === 0) return 'Zatvorené';
         const first = workingHours[enabled[0]];
@@ -808,73 +806,125 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
-                                  {DAYS_MAP.map(({ key, slovakName }) => {
-                                    const dayConfig = workingHours[key] || { enabled: false, from: '08:00', to: '17:00' };
-                                    return (
-                                      <tr key={key} className="text-sm">
-                                        <td className="py-3 font-semibold text-white/80">{slovakName}</td>
-                                        <td className="py-3 text-center">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setWorkingHours({
-                                                ...workingHours,
-                                                [key]: {
-                                                  ...dayConfig,
-                                                  enabled: !dayConfig.enabled
-                                                }
-                                              });
-                                            }}
-                                            className={`mx-auto w-12 h-6 rounded-full transition-colors relative block ${dayConfig.enabled ? 'bg-[#3A87AD]' : 'bg-white/10'}`}
-                                          >
-                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${dayConfig.enabled ? 'left-7' : 'left-1'}`} />
-                                          </button>
-                                        </td>
-                                        <td className="py-3">
-                                          {dayConfig.enabled ? (
-                                            <input 
-                                              type="time" 
-                                              className="input-field max-w-[120px]" 
-                                              value={dayConfig.from}
-                                              onChange={e => {
-                                                setWorkingHours({
-                                                  ...workingHours,
-                                                  [key]: {
-                                                    ...dayConfig,
-                                                    from: e.target.value
-                                                  }
-                                                });
-                                              }}
-                                              required
-                                            />
-                                          ) : (
-                                            <span className="text-white/20 italic">-</span>
-                                          )}
-                                        </td>
-                                        <td className="py-3">
-                                          {dayConfig.enabled ? (
-                                            <input 
-                                              type="time" 
-                                              className="input-field max-w-[120px]" 
-                                              value={dayConfig.to}
-                                              onChange={e => {
-                                                setWorkingHours({
-                                                  ...workingHours,
-                                                  [key]: {
-                                                    ...dayConfig,
-                                                    to: e.target.value
-                                                  }
-                                                });
-                                              }}
-                                              required
-                                            />
-                                          ) : (
-                                            <span className="text-white/20 italic">Zatvorené</span>
-                                          )}
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
+                                  {/* Row 1: Pondelok - Piatok */}
+                                  <tr className="text-sm">
+                                    <td className="py-3 font-semibold text-white/80">Pondelok – Piatok</td>
+                                    <td className="py-3 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => setWhMonFri({ ...whMonFri, enabled: !whMonFri.enabled })}
+                                        className={`mx-auto w-12 h-6 rounded-full transition-colors relative block ${whMonFri.enabled ? 'bg-[#3A87AD]' : 'bg-white/10'}`}
+                                      >
+                                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${whMonFri.enabled ? 'left-7' : 'left-1'}`} />
+                                      </button>
+                                    </td>
+                                    <td className="py-3">
+                                      {whMonFri.enabled ? (
+                                        <input 
+                                          type="time" 
+                                          className="input-field max-w-[120px]" 
+                                          value={whMonFri.from}
+                                          onChange={e => setWhMonFri({ ...whMonFri, from: e.target.value })}
+                                          required
+                                        />
+                                      ) : (
+                                        <span className="text-white/20 italic">-</span>
+                                      )}
+                                    </td>
+                                    <td className="py-3">
+                                      {whMonFri.enabled ? (
+                                        <input 
+                                          type="time" 
+                                          className="input-field max-w-[120px]" 
+                                          value={whMonFri.to}
+                                          onChange={e => setWhMonFri({ ...whMonFri, to: e.target.value })}
+                                          required
+                                        />
+                                      ) : (
+                                        <span className="text-white/20 italic">Zatvorené</span>
+                                      )}
+                                    </td>
+                                  </tr>
+
+                                  {/* Row 2: Sobota */}
+                                  <tr className="text-sm">
+                                    <td className="py-3 font-semibold text-white/80">Sobota</td>
+                                    <td className="py-3 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => setWhSaturday({ ...whSaturday, enabled: !whSaturday.enabled })}
+                                        className={`mx-auto w-12 h-6 rounded-full transition-colors relative block ${whSaturday.enabled ? 'bg-[#3A87AD]' : 'bg-white/10'}`}
+                                      >
+                                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${whSaturday.enabled ? 'left-7' : 'left-1'}`} />
+                                      </button>
+                                    </td>
+                                    <td className="py-3">
+                                      {whSaturday.enabled ? (
+                                        <input 
+                                          type="time" 
+                                          className="input-field max-w-[120px]" 
+                                          value={whSaturday.from}
+                                          onChange={e => setWhSaturday({ ...whSaturday, from: e.target.value })}
+                                          required
+                                        />
+                                      ) : (
+                                        <span className="text-white/20 italic">-</span>
+                                      )}
+                                    </td>
+                                    <td className="py-3">
+                                      {whSaturday.enabled ? (
+                                        <input 
+                                          type="time" 
+                                          className="input-field max-w-[120px]" 
+                                          value={whSaturday.to}
+                                          onChange={e => setWhSaturday({ ...whSaturday, to: e.target.value })}
+                                          required
+                                        />
+                                      ) : (
+                                        <span className="text-white/20 italic">Zatvorené</span>
+                                      )}
+                                    </td>
+                                  </tr>
+
+                                  {/* Row 3: Nedeľa */}
+                                  <tr className="text-sm">
+                                    <td className="py-3 font-semibold text-white/80">Nedeľa</td>
+                                    <td className="py-3 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => setWhSunday({ ...whSunday, enabled: !whSunday.enabled })}
+                                        className={`mx-auto w-12 h-6 rounded-full transition-colors relative block ${whSunday.enabled ? 'bg-[#3A87AD]' : 'bg-white/10'}`}
+                                      >
+                                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${whSunday.enabled ? 'left-7' : 'left-1'}`} />
+                                      </button>
+                                    </td>
+                                    <td className="py-3">
+                                      {whSunday.enabled ? (
+                                        <input 
+                                          type="time" 
+                                          className="input-field max-w-[120px]" 
+                                          value={whSunday.from}
+                                          onChange={e => setWhSunday({ ...whSunday, from: e.target.value })}
+                                          required
+                                        />
+                                      ) : (
+                                        <span className="text-white/20 italic">-</span>
+                                      )}
+                                    </td>
+                                    <td className="py-3">
+                                      {whSunday.enabled ? (
+                                        <input 
+                                          type="time" 
+                                          className="input-field max-w-[120px]" 
+                                          value={whSunday.to}
+                                          onChange={e => setWhSunday({ ...whSunday, to: e.target.value })}
+                                          required
+                                        />
+                                      ) : (
+                                        <span className="text-white/20 italic">Zatvorené</span>
+                                      )}
+                                    </td>
+                                  </tr>
                                 </tbody>
                               </table>
                             </div>

@@ -3,6 +3,7 @@ import { google } from "googleapis";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 
 admin.initializeApp();
 
@@ -14,6 +15,7 @@ db.settings({
 // Secrets
 const serviceAccountSecret = defineSecret("GOOGLE_SERVICE_ACCOUNT_JSON");
 const workCalendarIdSecret = defineSecret("WORK_CALENDAR_ID");
+const familyCalendarIdSecret = defineSecret("FAMILY_CALENDAR_ID");
 
 async function getCalendarClient(serviceAccountJson: string) {
   const credentials = JSON.parse(serviceAccountJson);
@@ -143,4 +145,59 @@ export const onBookingRescheduled = onDocumentUpdated(
     }
   }
 );
+
+export const getBlockedSlots = onCall(
+  {
+    secrets: [serviceAccountSecret, familyCalendarIdSecret, workCalendarIdSecret],
+    region: "us-central1"
+  },
+  async (request) => {
+    const { dateFrom, dateTo } = request.data;
+    // dateFrom, dateTo: "YYYY-MM-DD" strings
+
+    if (!dateFrom || !dateTo) {
+      throw new HttpsError("invalid-argument", "Missing dateFrom or dateTo");
+    }
+
+    try {
+      const calendar = await getCalendarClient(serviceAccountSecret.value());
+
+      const timeMin = new Date(dateFrom + 'T00:00:00').toISOString();
+      const timeMax = new Date(dateTo + 'T23:59:59').toISOString();
+
+      // Fetch from both calendars
+      const calendarIds = [
+        workCalendarIdSecret.value(),
+        familyCalendarIdSecret.value()
+      ];
+
+      const allEvents: { start: string; end: string }[] = [];
+
+      for (const calendarId of calendarIds) {
+        const response = await calendar.events.list({
+          calendarId,
+          timeMin,
+          timeMax,
+          singleEvents: true,
+          orderBy: 'startTime'
+        });
+
+        const events = response.data.items || [];
+        for (const event of events) {
+          const start = event.start?.dateTime || event.start?.date;
+          const end = event.end?.dateTime || event.end?.date;
+          if (start && end) {
+            allEvents.push({ start, end });
+          }
+        }
+      }
+
+      return { events: allEvents };
+    } catch (error) {
+      logger.error("Error in getBlockedSlots:", error);
+      throw new HttpsError("internal", "Failed to fetch calendar events");
+    }
+  }
+);
+
 

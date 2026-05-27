@@ -23,6 +23,7 @@ import { getBoilerStatus, getStatusColor, getStatusLabel } from '../utils/boiler
 import { BoilerInfoModal } from './BoilerInfoModal';
 import { ImageOverlay } from './ImageOverlay';
 import { useTermSettings } from '../hooks/useTermSettings';
+import { formatAddress } from '../utils/addressUtils';
 
 interface CustomerDetailProps {
   customer: Customer;
@@ -185,7 +186,7 @@ export const CustomerDetail = React.memo(({
                       </button>
                     </div>
                     <p className="text-xs text-[#3A87AD] font-medium mt-0.5">
-                      {boiler.address}
+                      {formatAddress(boiler.address)}
                     </p>
                   </div>
                   <div className="flex flex-col items-end flex-shrink-0 ml-auto">
@@ -356,7 +357,7 @@ export const CustomerDetail = React.memo(({
                 <Popup>
                   <div className="p-1">
                     <p className="font-bold text-slate-900 mb-1">{boiler.name}</p>
-                    <p className="text-xs text-slate-500">{boiler.address}</p>
+                    <p className="text-xs text-slate-500">{formatAddress(boiler.address)}</p>
                   </div>
                 </Popup>
               </Marker>

@@ -23,6 +23,7 @@ import { useBookings } from '../hooks/useBookings';
 import { Booking } from '../types';
 import { toast } from 'sonner';
 import { db } from '../firebase';
+import { formatAddress } from '../utils/addressUtils';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 
@@ -70,7 +71,7 @@ const BookingCard = ({
             </div>
             <div className="flex items-center gap-2 text-white/40 text-sm mt-1">
               <MapPin size={14} />
-              <span>{booking.address}</span>
+              <span>{formatAddress(booking.address)}</span>
             </div>
           </div>
           <div className={`px-3 py-1 rounded-full border ${

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Plus, Phone, Info, MapPin, PenTool, ChevronDown, ChevronUp } from 'lucide-react';
 import { Contact } from '../types';
+import { formatAddress } from '../utils/addressUtils';
 
 interface ContactsListProps {
   contacts: Contact[];
@@ -180,7 +181,7 @@ export const ContactsList = ({
                   >
                     <MapPin size={16} className="text-white/20 mt-0.5" />
                   </span>
-                  <span>{contact.address}</span>
+                  <span>{formatAddress(contact.address)}</span>
                 </div>
               )}
             </div>
