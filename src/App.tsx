@@ -93,8 +93,7 @@ import {
   uploadFile
 } from './firebase';
 import { 
-  signInWithRedirect, 
-  getRedirectResult,
+  signInWithPopup, 
   GoogleAuthProvider, 
   signOut
 } from 'firebase/auth';
@@ -326,39 +325,10 @@ export default function App() {
     return () => unsub();
   }, [user]);
 
-  // Handle Redirect Result
-  useEffect(() => {
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result) {
-          console.log("Login successful via redirect:", result.user.email);
-          // Note: Token sync to backend is now handled via the dedicated OAuth flow
-          // initiated from Sidebar or Settings, which provides a refresh token.
-        }
-      })
-      .catch((error) => {
-        console.error("Login redirect error:", {
-          code: error.code,
-          message: error.message,
-          customData: error.customData,
-          email: error.customData?.email
-        });
-        toast.error(`Chyba prihlásenia: ${error.message}`);
-      });
-  }, []);
-
   const handleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      // Add Google Calendar scope
-      provider.addScope('https://www.googleapis.com/auth/calendar');
-      
-      // Add custom parameters
-      provider.setCustomParameters({
-        prompt: 'select_account',
-        access_type: 'offline' // Try to get refresh token (though tricky with Firebase Auth client)
-      });
-      await signInWithRedirect(auth, provider);
+      await signInWithPopup(auth, provider);
     } catch (error: any) {
       console.error("Login initiation failed:", {
         code: error.code,

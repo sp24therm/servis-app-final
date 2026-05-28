@@ -1376,6 +1376,13 @@ export const Settings = ({ onBackgroundUpdate }: SettingsProps) => {
             </AnimatePresence>
           </section>
         </div>
+
+        <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+          <span className="text-xs text-white/20">SP Therm Servis</span>
+          <span className="text-xs text-white/20">
+            Build: {(window as any).__BUILD_DATE__ || 'dev'}
+          </span>
+        </div>
       </div>
     </div>
   );
