@@ -185,9 +185,11 @@ import { BookingsManager } from './components/BookingsManager';
 
 // --- Main App ---
 import { useAuth } from './hooks/useAuth';
+import { useAppBadge } from './hooks/useAppBadge';
 
 export default function App() {
   const { user, loading } = useAuth();
+  const { setBadge } = useAppBadge();
   const { 
     data, 
     handleServiceSubmit: _handleServiceSubmit,
@@ -201,6 +203,11 @@ export default function App() {
     deleteContact,
     deleteService
   } = useAppData(user);
+
+  useEffect(() => {
+    const pendingCount = (data.bookings || []).filter(b => b.status === 'pending').length;
+    setBadge(pendingCount);
+  }, [data.bookings, setBadge]);
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);

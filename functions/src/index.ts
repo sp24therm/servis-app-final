@@ -227,7 +227,20 @@ export const onNewBooking = onDocumentCreated(
               notification: {
                 icon: 'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0463998550.firebasestorage.app/o/public%2Flogo.png?alt=media&token=41ca22c4-cbbc-4b1b-9ba1-7b178e3baef5',
                 badge: 'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0463998550.firebasestorage.app/o/public%2Flogo.png?alt=media&token=41ca22c4-cbbc-4b1b-9ba1-7b178e3baef5',
-                click_action: 'https://spservis.pages.dev'
+                click_action: 'https://spservis.pages.dev',
+                vibrate: [200, 100, 200],
+                requireInteraction: true
+              },
+              fcmOptions: {
+                link: 'https://spservis.pages.dev'
+              }
+            },
+            apns: {
+              payload: {
+                aps: {
+                  sound: 'default',
+                  badge: 1
+                }
               }
             }
           });

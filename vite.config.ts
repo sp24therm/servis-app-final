@@ -31,8 +31,8 @@ export default defineConfig(({mode}) => {
     ],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      '__BUILD_DATE__': JSON.stringify(new Date().toISOString().split('T')[0]),
-      'window.__BUILD_DATE__': JSON.stringify(new Date().toISOString().split('T')[0]),
+      '__BUILD_DATE__': JSON.stringify((() => { const d = new Date(); return `v${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`; })()),
+      'window.__BUILD_DATE__': JSON.stringify((() => { const d = new Date(); return `v${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`; })()),
     },
     resolve: {
       alias: {
