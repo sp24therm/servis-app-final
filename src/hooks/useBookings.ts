@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, getDocs, runTransaction, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, getDocs, runTransaction, getDoc, writeBatch, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Booking, Customer, Boiler } from '../types';
+import { toast } from 'sonner';
 
 export const useBookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'bookings'));
+    const q = query(collection(db, 'bookings'), limit(100)); // CHANGED: Added limit(100) to constrain the live query
     const unsub = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
       setBookings(data.sort((a, b) => new Date(a.preferredDate).getTime() - new Date(b.preferredDate).getTime()));
@@ -17,6 +18,24 @@ export const useBookings = () => {
 
     return () => unsub();
   }, []);
+
+  const rejectBooking = async (bookingId: string, date: string, time: string) => {
+    try {
+      const batch = writeBatch(db);
+      // Delete booking entirely
+      batch.delete(doc(db, 'bookings', bookingId));
+      // Free the slot
+      const slotId = `${date}_${time.replace(':', '')}`;
+      batch.delete(doc(db, 'slots', slotId));
+      await batch.commit();
+      toast.success('Objednávka zamietnutá a termín uvoľnený');
+      return true;
+    } catch (error) {
+      console.error('Error rejecting booking:', error);
+      toast.error('Chyba pri zamietnutí');
+      return false;
+    }
+  };
 
   const confirmBooking = async (booking: Booking) => {
     try {
@@ -131,5 +150,5 @@ export const useBookings = () => {
     }
   };
 
-  return { bookings, confirmBooking, cancelBooking, deleteBooking, updateBookingTime, loading };
+  return { bookings, confirmBooking, cancelBooking, deleteBooking, updateBookingTime, rejectBooking, loading };
 };

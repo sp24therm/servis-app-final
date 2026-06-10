@@ -37,7 +37,9 @@ const BookingCard = ({
   setNewDate, 
   setNewTime, 
   setCancellingId,
-  setDeletingId
+  setDeletingId,
+  rejectingId,
+  handleReject
 }: { 
   booking: Booking, 
   isPending: boolean,
@@ -48,7 +50,9 @@ const BookingCard = ({
   setNewDate: (d: string) => void,
   setNewTime: (t: string) => void,
   setCancellingId: (id: string) => void,
-  setDeletingId: (id: string) => void
+  setDeletingId: (id: string) => void,
+  rejectingId?: string | null,
+  handleReject?: (b: Booking) => void
 }) => (
   <motion.div
     layout
@@ -131,20 +135,36 @@ const BookingCard = ({
 
       <div className="lg:w-48 flex flex-col justify-center gap-3">
         {isPending ? (
-          <button
-            onClick={() => handleConfirm(booking)}
-            disabled={confirmingId === booking.id}
-            className="btn-primary w-full justify-center py-4 rounded-2xl shadow-lg shadow-[#3A87AD]/20"
-          >
-            {confirmingId === booking.id ? (
-              <Loader2 className="animate-spin" size={20} />
-            ) : (
-              <>
-                <CheckCircle2 size={20} />
-                <span className="font-bold uppercase">Potvrdiť</span>
-              </>
-            )}
-          </button>
+          <div className="flex flex-col gap-2 w-full">
+            <button
+              onClick={() => handleConfirm(booking)}
+              disabled={confirmingId === booking.id || rejectingId === booking.id}
+              className="btn-primary w-full justify-center py-3 rounded-xl shadow-lg shadow-[#3A87AD]/20"
+            >
+              {confirmingId === booking.id ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <>
+                  <CheckCircle2 size={20} />
+                  <span className="font-bold uppercase">Potvrdiť</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => handleReject && handleReject(booking)}
+              disabled={confirmingId === booking.id || rejectingId === booking.id}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/20 transition-colors font-bold uppercase text-sm"
+            >
+              {rejectingId === booking.id ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <>
+                  <XCircle size={20} />
+                  <span>Zamietnuť</span>
+                </>
+              )}
+            </button>
+          </div>
         ) : (
           <>
             <button
@@ -189,8 +209,9 @@ const BookingCard = ({
 );
 
 export const BookingsManager = () => {
-  const { bookings, confirmBooking, cancelBooking, deleteBooking, updateBookingTime, loading } = useBookings();
+  const { bookings, confirmBooking, cancelBooking, deleteBooking, updateBookingTime, rejectBooking, loading } = useBookings();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
@@ -224,6 +245,17 @@ export const BookingsManager = () => {
       toast.error('Chyba pri potvrdzovaní');
     } finally {
       setConfirmingId(null);
+    }
+  };
+
+  const handleReject = async (booking: Booking) => {
+    setRejectingId(booking.id);
+    try {
+      await rejectBooking(booking.id, booking.preferredDate, booking.preferredTime);
+    } catch (error) {
+      console.error("Failed to reject:", error);
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -350,6 +382,8 @@ export const BookingsManager = () => {
                 setNewTime={setNewTime}
                 setCancellingId={setCancellingId}
                 setDeletingId={setDeletingId}
+                rejectingId={rejectingId}
+                handleReject={handleReject}
               />
             ))}
           </div>
@@ -382,6 +416,8 @@ export const BookingsManager = () => {
                 setNewTime={setNewTime}
                 setCancellingId={setCancellingId}
                 setDeletingId={setDeletingId}
+                rejectingId={rejectingId}
+                handleReject={handleReject}
               />
             ))}
           </div>

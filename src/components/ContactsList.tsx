@@ -63,7 +63,7 @@ export const ContactsList = ({
           <input 
             type="text" 
             placeholder="Hľadať v kontaktoch..." 
-            className="input-field pl-12"
+            className="input-field !pl-12" // FIXED
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

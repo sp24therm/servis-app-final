@@ -80,8 +80,7 @@ export const generateServicePDF = async (
   const stampBase64 = (stampUrl && stampUrl.length > 0) 
     ? await toBase64(stampUrl) 
     : '';
-  console.log('stampUrl received:', stampUrl ? 'YES - ' + stampUrl.substring(0, 50) : 'NO');
-  console.log('stampBase64 result:', stampBase64 ? 'SUCCESS - length:' + stampBase64.length : 'EMPTY');
+
 
   const checklistItems = [
     { key: 'burnerCheck', label: 'Kontrola horáka' },

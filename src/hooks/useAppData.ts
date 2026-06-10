@@ -5,7 +5,13 @@ import {
   setDoc, 
   updateDoc, 
   deleteDoc, 
-  onSnapshot 
+  onSnapshot,
+  query,
+  where,
+  getDocs,
+  writeBatch,
+  serverTimestamp,
+  limit
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { 
@@ -19,6 +25,7 @@ import {
 } from '../types';
 import { User } from 'firebase/auth';
 import { seedPriceList } from '../utils/seedPriceList';
+import { toast } from 'sonner';
 
 export const useAppData = (user: User | null) => {
   const [data, setData] = useState<{
@@ -69,7 +76,7 @@ export const useAppData = (user: User | null) => {
       setData(prev => ({ ...prev, priceList }));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'priceList'));
 
-    const unsubBookings = onSnapshot(collection(db, 'bookings'), (snapshot) => {
+    const unsubBookings = onSnapshot(query(collection(db, 'bookings'), limit(100)), (snapshot) => { // CHANGED: Added limit(100) to resolve unconstrained real-time listener
       const bookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
       setData(prev => ({ ...prev, bookings }));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'bookings'));
@@ -268,14 +275,35 @@ export const useAppData = (user: User | null) => {
   };
 
   const deleteCustomer = async (id: string) => {
-    await deleteDoc(doc(db, 'customers', id));
-    const customerBoilers = data.boilers.filter(b => b.customerId === id);
-    for (const boiler of customerBoilers) {
-      await deleteDoc(doc(db, 'boilers', boiler.id));
-      const boilerServices = data.services.filter(s => s.boilerId === boiler.id);
-      for (const service of boilerServices) {
-        await deleteDoc(doc(db, 'services', service.id));
+    try {
+      const docsToDelete = [];
+      
+      // 1. Add customer document reference
+      docsToDelete.push(doc(db, 'customers', id));
+      
+      // 2. Add sub-resources (boilers and services)
+      const customerBoilers = data.boilers.filter(b => b.customerId === id);
+      for (const boiler of customerBoilers) {
+        docsToDelete.push(doc(db, 'boilers', boiler.id));
+        const boilerServices = data.services.filter(s => s.boilerId === boiler.id);
+        for (const service of boilerServices) {
+          docsToDelete.push(doc(db, 'services', service.id));
+        }
       }
+
+      // 3. Process in batches (max 500 operations per batch)
+      const BATCH_LIMIT = 500;
+      for (let i = 0; i < docsToDelete.length; i += BATCH_LIMIT) {
+        const batch = writeBatch(db);
+        const chunk = docsToDelete.slice(i, i + BATCH_LIMIT);
+        for (const docRef of chunk) {
+          batch.delete(docRef);
+        }
+        await batch.commit(); // CHANGED: atomic operations using batch.commit()
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'customers'); // CHANGED: error handling with handleFirestoreError
+      throw error;
     }
   };
 
@@ -328,6 +356,48 @@ export const useAppData = (user: User | null) => {
     }
   };
 
+  const mergeCustomers = async (sourceId: string, targetId: string) => {
+    try {
+      const sourceCust = data.customers.find(c => c.id === sourceId);
+      const targetCust = data.customers.find(c => c.id === targetId);
+
+      // 1. Get all boilers of source customer
+      const boilersSnap = await getDocs(
+        query(collection(db, 'boilers'), where('customerId', '==', sourceId))
+      );
+
+      // 2. Update each boiler to point to target customer and delete source customer inside a batch
+      const batch = writeBatch(db);
+      boilersSnap.docs.forEach(b => {
+        batch.update(b.ref, { customerId: targetId });
+      });
+
+      // Merge notes
+      let updatedNotes = targetCust?.notes || '';
+      if (sourceCust?.notes) {
+        updatedNotes = updatedNotes 
+          ? `${updatedNotes}\n--- Zlúčené poznámky ---\n${sourceCust.notes}`
+          : sourceCust.notes;
+      }
+
+      batch.update(doc(db, 'customers', targetId), { 
+        notes: updatedNotes,
+        updatedAt: serverTimestamp()
+      });
+
+      // Delete source customer
+      batch.delete(doc(db, 'customers', sourceId));
+
+      await batch.commit();
+      toast.success('Zákazníci zlúčení');
+      return true;
+    } catch (error) {
+      console.error('Error merging customers:', error);
+      toast.error('Chyba pri zlučovaní zákazníkov');
+      return false;
+    }
+  };
+
   return {
     data,
     handleServiceSubmit,
@@ -339,6 +409,7 @@ export const useAppData = (user: User | null) => {
     deleteCustomer,
     deleteBoiler,
     deleteContact,
-    deleteService
+    deleteService,
+    mergeCustomers
   };
 };

@@ -11,54 +11,59 @@ import {
   PieChart as PieChartIcon,
   CheckCircle2,
   PenTool,
-  Loader2
+  Loader2,
+  Maximize2 // FIXED
 } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { Boiler, ServiceRecord, ServiceStatus } from '../types';
 import { uploadFile } from '../firebase';
 import { compressImage } from '../utils/imageUtils';
+import { toast } from 'sonner'; // FIXED
 
-const trimCanvas = (canvas: HTMLCanvasElement) => {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas;
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const l = pixels.data.length;
-  const bound = {
-    top: null as number | null,
-    left: null as number | null,
-    right: null as number | null,
-    bottom: null as number | null
-  };
-  let i, x, y;
+function cropSignature(canvas: HTMLCanvasElement, padding = 20): HTMLCanvasElement { // FIXED
+  const ctx = canvas.getContext('2d')!; // FIXED
+  const { width, height } = canvas; // FIXED
+  const imageData = ctx.getImageData(0, 0, width, height); // FIXED
+  const data = imageData.data; // FIXED
 
-  for (i = 0; i < l; i += 4) {
-    if (pixels.data[i + 3] !== 0) {
-      x = (i / 4) % canvas.width;
-      y = Math.floor((i / 4) / canvas.width);
+  let minX = width, minY = height, maxX = 0, maxY = 0; // FIXED
+  for (let y = 0; y < height; y++) { // FIXED
+    for (let x = 0; x < width; x++) { // FIXED
+      const idx = (y * width + x) * 4; // FIXED
+      const r = data[idx], g = data[idx+1], b = data[idx+2], a = data[idx+3]; // FIXED
+      const isBackground = a < 10 || (r > 240 && g > 240 && b > 240); // FIXED
+      if (!isBackground) { // FIXED
+        if (x < minX) minX = x; // FIXED
+        if (x > maxX) maxX = x; // FIXED
+        if (y < minY) minY = y; // FIXED
+        if (y > maxY) maxY = y; // FIXED
+      } // FIXED
+    } // FIXED
+  } // FIXED
 
-      if (bound.top === null) bound.top = y;
-      if (bound.left === null) bound.left = x;
-      else if (x < bound.left) bound.left = x;
-      if (bound.right === null) bound.right = x;
-      else if (bound.right < x) bound.right = x;
-      if (bound.bottom === null || bound.bottom < y) bound.bottom = y;
-    }
-  }
+  // Empty canvas guard
+  if (maxX < minX || maxY < minY) { // FIXED
+    const empty = document.createElement('canvas'); // FIXED
+    empty.width = 1; empty.height = 1; // FIXED
+    return empty; // FIXED
+  } // FIXED
 
-  if (bound.top === null) return canvas;
+  minX = Math.max(0, minX - padding); // FIXED
+  minY = Math.max(0, minY - padding); // FIXED
+  maxX = Math.min(width, maxX + padding); // FIXED
+  maxY = Math.min(height, maxY + padding); // FIXED
 
-  const trimHeight = bound.bottom! - bound.top! + 1;
-  const trimWidth = bound.right! - bound.left! + 1;
-  const trimmed = ctx.getImageData(bound.left!, bound.top!, trimWidth, trimHeight);
-
-  const copy = document.createElement('canvas');
-  copy.width = trimWidth;
-  copy.height = trimHeight;
-  const copyCtx = copy.getContext('2d');
-  if (copyCtx) copyCtx.putImageData(trimmed, 0, 0);
-
-  return copy;
-};
+  const cropW = maxX - minX; // FIXED
+  const cropH = maxY - minY; // FIXED
+  const offscreen = document.createElement('canvas'); // FIXED
+  offscreen.width = cropW; // FIXED
+  offscreen.height = cropH; // FIXED
+  const offCtx = offscreen.getContext('2d')!; // FIXED
+  offCtx.fillStyle = '#ffffff'; // FIXED
+  offCtx.fillRect(0, 0, cropW, cropH); // FIXED
+  offCtx.drawImage(canvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH); // FIXED
+  return offscreen; // FIXED
+} // FIXED
 
 export const ServiceForm = ({ 
   boiler, 
@@ -69,8 +74,9 @@ export const ServiceForm = ({
   boiler: Boiler, 
   initialData?: ServiceRecord,
   onCancel: () => void, 
-  onSubmit: (data: Partial<ServiceRecord>) => void 
+  onSubmit: (data: Partial<ServiceRecord>) => Promise<void> // FIXED
 }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false); // FIXED
   const [formData, setFormData] = useState({
     date: initialData?.date || new Date().toISOString().split('T')[0],
     taskPerformed: initialData?.taskPerformed || '',
@@ -123,6 +129,8 @@ export const ServiceForm = ({
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [signed, setSigned] = useState(!!initialData);
   const sigCanvas = useRef<SignatureCanvas>(null);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(initialData?.signature || null); // FIXED
+  const [isExpanded, setIsExpanded] = useState(false); // FIXED
 
   const normalizeNumber = (value: string) => value.replace(',', '.');
 
@@ -806,50 +814,159 @@ export const ServiceForm = ({
             <label className="text-sm font-bold text-white/70 flex items-center gap-2">
               <PenTool size={18} /> Podpis zákazníka
             </label>
-            <div className="bg-white/5 rounded-2xl border border-white/10 relative overflow-hidden h-48">
-              <SignatureCanvas 
-                ref={sigCanvas}
-                penColor="#3A87AD"
-                canvasProps={{ className: "w-full h-full cursor-crosshair" }}
-                onEnd={() => setSigned(true)}
-              />
-              <div className="absolute bottom-4 left-4 right-4 h-px bg-white/10 pointer-events-none"></div>
-              <button 
-                type="button"
-                onClick={() => { sigCanvas.current?.clear(); setSigned(false); }}
-                className="absolute top-2 right-2 p-1 bg-black/40 rounded-md text-xs font-bold text-white/40 hover:text-white transition-colors"
+            {signaturePreview ? ( // FIXED
+              <div 
+                onClick={() => setIsExpanded(true)} // FIXED
+                className="w-full rounded-xl overflow-hidden bg-white cursor-pointer h-20 hover:opacity-90 transition-all relative flex items-center justify-center border border-white/10" // FIXED
               >
-                Vymazať podpis
-              </button>
-            </div>
+                <img src={signaturePreview} alt="Podpis" className="w-full h-full object-contain bg-white" /> {/* FIXED */}
+                <Maximize2 size={16} className="absolute top-2 right-2 text-gray-400 pointer-events-none" /> {/* FIXED */}
+              </div> // FIXED
+            ) : ( // FIXED
+              <div 
+                onClick={() => setIsExpanded(true)} // FIXED
+                className="bg-white/5 rounded-2xl border border-white/10 cursor-pointer h-32 flex flex-col items-center justify-center hover:bg-white/10 transition-all overflow-hidden relative" // FIXED
+              >
+                <div className="flex flex-col items-center text-white/40">
+                  <PenTool size={24} className="mb-1" />
+                  <span className="text-xs font-semibold">Kliknite pre podpis</span>
+                </div>
+              </div> // FIXED
+            )} {/* FIXED */}
           </div>
         </div>
 
         <div className="pt-4 flex gap-4">
-          <button onClick={onCancel} className="btn-secondary flex-1 justify-center">Zrušiť</button>
           <button 
-            onClick={() => {
-              const canvas = sigCanvas.current?.getCanvas();
-              const signature = canvas ? trimCanvas(canvas).toDataURL('image/png') : undefined;
-              onSubmit({
-                ...formData, 
-                operationalStatus: formData.operationalStatus as 'capable' | 'incapable',
-                status: ServiceStatus.COMPLETED, 
-                photo: photo || undefined,
-                photoBefore: photoBefore || undefined,
-                photoAfter: photoAfter || undefined,
-                photoBoiler: photoBoiler || undefined,
-                photoConnection: photoConnection || undefined,
-                photoChimney: photoChimney || undefined,
-                signature
-              });
-            }}
-            className="btn-primary flex-1 justify-center"
+            type="button"
+            disabled={isSubmitting} // FIXED
+            onClick={onCancel} 
+            className="btn-secondary flex-1 justify-center disabled:opacity-50"
           >
-            Uložiť záznam
+            Zrušiť
+          </button>
+          <button 
+            type="button"
+            disabled={isSubmitting} // FIXED
+            onClick={async () => { // FIXED
+              if (isSubmitting) return; // FIXED
+              setIsSubmitting(true); // FIXED
+              try { // FIXED
+                const signature = signaturePreview || undefined; // FIXED
+                if (!signature) { // FIXED
+                  toast.error("Prosím podpíšte protokol."); // FIXED
+                  setIsSubmitting(false); // FIXED
+                  return; // FIXED
+                } // FIXED
+                await onSubmit({ // FIXED
+                  ...formData, 
+                  operationalStatus: formData.operationalStatus as 'capable' | 'incapable',
+                  status: ServiceStatus.COMPLETED, 
+                  photo: photo || undefined,
+                  photoBefore: photoBefore || undefined,
+                  photoAfter: photoAfter || undefined,
+                  photoBoiler: photoBoiler || undefined,
+                  photoConnection: photoConnection || undefined,
+                  photoChimney: photoChimney || undefined,
+                  signature
+                });
+                onCancel(); // FIXED (Closes the modal/view on SUCCESS)
+              } catch (error) { // FIXED
+                console.error("Save service record failed:", error); // FIXED
+                toast.error("Chyba pri ukladaní záznamu. Skontrolujte pripojenie."); // FIXED
+              } finally { // FIXED
+                setIsSubmitting(false); // FIXED
+              } // FIXED
+            }}
+            className="btn-primary flex-1 justify-center relative min-h-[44px]"
+          >
+            {isSubmitting ? ( // FIXED
+              <>
+                <Loader2 size={18} className="animate-spin mr-2" /> {/* FIXED */}
+                Ukladá sa... {/* FIXED */}
+              </>
+            ) : ( // FIXED
+              "Uložiť záznam" // FIXED
+            )} {/* FIXED */}
           </button>
         </div>
       </div>
+
+      {/* Signature Overlay - FIXED */}
+      {isExpanded && (
+        <div className="fixed inset-0 bg-[#1A1A1A] backdrop-blur-md z-[250] flex flex-col justify-between p-6 overflow-hidden">
+          {/* Header - FIXED */}
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <PenTool size={20} /> Podpis zákazníka {/* FIXED */}
+            </h3>
+            <button 
+              type="button"
+              onClick={() => setIsExpanded(false)}
+              className="text-white/60 hover:text-white font-bold"
+            >
+              Zatvoriť {/* FIXED */}
+            </button>
+          </div>
+
+          {/* Canvas area (expanded 50vh) - FIXED */}
+          <div className="bg-white/5 rounded-2xl border border-white/10 relative overflow-hidden w-full flex-1 my-6" style={{ minHeight: '40vh', maxHeight: '60vh' }}>
+            <SignatureCanvas 
+              ref={sigCanvas}
+              penColor="#3A87AD"
+              canvasProps={{ className: "w-full h-full cursor-crosshair bg-transparent" }}
+              onEnd={() => {
+                setSigned(true);
+                const canvas = sigCanvas.current?.getCanvas();
+                if (canvas) {
+                  const cropped = cropSignature(canvas);
+                  if (cropped && cropped.width > 1) {
+                    setSignaturePreview(cropped.toDataURL('image/png'));
+                  }
+                }
+              }}
+            />
+          </div>
+
+          {/* Overlay Footer - UX-FIX */}
+          <div className="space-y-4">
+            {!signaturePreview ? (
+              <div className="flex flex-col items-center gap-3 w-full">
+                <span className="text-xs font-medium text-white/40">Podpíšte sa vyššie</span>
+                <button 
+                  type="button"
+                  disabled
+                  className="w-full h-12 rounded-xl bg-white/5 border border-white/10 text-white/20 font-bold uppercase cursor-not-allowed transition-all"
+                >
+                  Vymazať {/* UX-FIX */}
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4 w-full">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    sigCanvas.current?.clear();
+                    setSigned(false);
+                    setSignaturePreview(null);
+                  }}
+                  className="text-xs font-bold text-white/60 hover:text-white transition-all uppercase tracking-wider"
+                >
+                  Podpísať znova {/* UX-FIX */}
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setIsExpanded(false)}
+                  className="w-full min-h-[64px] bg-green-500 hover:bg-green-400 text-white font-bold rounded-2xl transition-all shadow-lg flex items-center justify-center gap-4 px-6 uppercase tracking-wider"
+                >
+                  <img src={signaturePreview} alt="Náhľad" className="max-h-12 bg-white p-1 rounded-xl shadow-inner object-contain max-w-[120px]" /> {/* UX-FIX */}
+                  <span className="text-lg">Potvrdiť podpis ✓</span> {/* UX-FIX */}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Phone, ChevronRight, TrendingUp, CheckCircle2, Trash2, Calendar, MessageSquare } from 'lucide-react';
+import { Plus, Search, Phone, ChevronRight, TrendingUp, CheckCircle2, Trash2, Calendar, MessageSquare, GitMerge } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   ResponsiveContainer, 
@@ -13,10 +13,8 @@ import {
 import { Customer, Boiler, Booking } from '../types';
 import { getBoilerStatus, getStatusColor, getStatusLabel } from '../utils/boilerUtils';
 import { useTermSettings } from '../hooks/useTermSettings';
+import { removeDiacritics, sanitizePhone } from '../utils/textUtils'; // CHANGED: imported from textUtils
 
-const removeDiacritics = (str: string) => {
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-};
 
 interface CustomerListProps {
   customers: Customer[];
@@ -26,6 +24,8 @@ interface CustomerListProps {
   onAddCustomer: () => void;
   onEditCustomer: (customer: Customer) => void;
   onDeleteCustomer: (id: string) => void;
+  onMergeCustomers?: (sourceId: string, targetId: string) => Promise<boolean>;
+  initialSearch?: string;
 }
 
 type ServiceCategory = 'TERAZ' | 'PO TERMÍNE' | 'ZASPATÝ' | 'BLÍŽIACE SA' | 'V TERMÍNE';
@@ -37,14 +37,24 @@ export const CustomerList = ({
   onSelectCustomer,
   onAddCustomer,
   onEditCustomer,
-  onDeleteCustomer
+  onDeleteCustomer,
+  onMergeCustomers,
+  initialSearch
 }: CustomerListProps) => {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch || '');
+
+  React.useEffect(() => {
+    if (initialSearch !== undefined) {
+      setSearch(initialSearch);
+    }
+  }, [initialSearch]);
   const { termSettings } = useTermSettings();
+  const [mergeSource, setMergeSource] = useState<Customer | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState<string>('');
 
   const sendServiceReminderSms = (customer: Customer) => {
     const text = `Dobrý deň ${customer.name}, blíži sa termín Vašej ročnej prehliadky kotla. Termín si môžete rezervovať na www.sptherm.sk alebo Vás v najbližších dňoch budeme kontaktovať. Váš spoľahlivý partner pre vykurovanie – SP Therm s.r.o.`;
-    const phone = customer.phone?.replace(/\s+/g, '') || '';
+    const phone = customer.phone ? sanitizePhone(customer.phone) : ''; // CHANGED: using sanitizePhone helper
     if (!phone) {
       toast.warning('Zákazník nemá telefónne číslo');
       return;
@@ -242,7 +252,7 @@ export const CustomerList = ({
         <input 
           type="text" 
           placeholder="Hľadať v zozname zákazníkov" 
-          className="input-field pl-12"
+          className="input-field !pl-12" // FIXED
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -292,7 +302,12 @@ export const CustomerList = ({
                 </div>
                 <div>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                    <h3 className="font-bold text-white text-lg leading-tight">{customer.name}</h3>
+                    <h3 className="font-bold text-white text-lg leading-tight flex items-center gap-1.5">
+                      {customer.name}
+                      {customer.notes?.startsWith('Z web objednávky') && (
+                        <span className="text-[9px] bg-[#3A87AD]/20 text-[#3A87AD] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">WEB</span>
+                      )}
+                    </h3>
                     <div className="flex flex-wrap gap-1">
                       {Array.from(new Set(customerBoilers.map(b => b.brand))).map(brand => (
                         <span key={brand} className="text-[10px] bg-[#3A87AD]/10 text-[#3A87AD] px-1.5 py-0.5 rounded-md font-bold uppercase">{brand}</span>
@@ -337,6 +352,18 @@ export const CustomerList = ({
                     <MessageSquare size={18} />
                   </button>
                 )}
+                 <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMergeSource(customer);
+                    setMergeTargetId('');
+                  }}
+                  className="p-2 text-white/20 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-all"
+                  title="Zlúčiť zákazníka"
+                >
+                  <GitMerge size={18} />
+                </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -372,6 +399,65 @@ export const CustomerList = ({
           );
         })}
       </div>
+
+      {mergeSource && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4">
+          <div className="card p-6 w-full max-w-md border border-white/10 shadow-2xl relative bg-[#1A1A1A] text-white">
+            <h3 className="text-xl font-bold mb-2">Zlúčiť zákazníka</h3>
+            <p className="text-sm text-white/60 mb-4">
+              Chystáte sa zlúčiť zákazníka <strong>{mergeSource.name}</strong> do iného zákazníka. Všetky zariadenia (kotly) a zlúčené poznámky budú presunuté na cieľového zákazníka a pôvodný zákazník bude natrvalo vymazaný.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
+                  Vyberte cieľového zákazníka
+                </label>
+                <select
+                  value={mergeTargetId}
+                  onChange={(e) => setMergeTargetId(e.target.value)}
+                  className="w-full bg-[#262626] border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-[#3A87AD]"
+                >
+                  <option value="">-- Vyberte zákazníka --</option>
+                  {customers
+                    .filter(c => c.id !== mergeSource.id)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.phone || 'bez tel.'})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setMergeSource(null)}
+                className="px-4 py-2 text-sm font-bold text-white/60 hover:text-white transition-colors"
+              >
+                Zrušiť
+              </button>
+              <button
+                type="button"
+                disabled={!mergeTargetId}
+                onClick={async () => {
+                  if (!mergeTargetId) return;
+                  if (onMergeCustomers) {
+                    await onMergeCustomers(mergeSource.id, mergeTargetId);
+                  }
+                  setMergeSource(null);
+                }}
+                className="px-4 py-2 bg-[#3A87AD] hover:bg-[#2A779D] text-white rounded-xl text-sm font-bold disabled:opacity-50 transition-colors flex items-center gap-2"
+              >
+                <GitMerge size={16} />
+                Zlúčiť
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

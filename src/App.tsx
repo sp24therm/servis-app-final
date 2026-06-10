@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useRef, Component } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, 
   Users, 
@@ -33,34 +33,14 @@ import {
   Scan
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  ResponsiveContainer, 
-  Tooltip as RechartsTooltip, 
-  Legend,
-  AreaChart,
-  Area,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid
-} from 'recharts';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import SignatureCanvas from 'react-signature-canvas';
-import { generateServicePDF } from './utils/pdf';
-import { MeasurementHistory } from './components/MeasurementHistory';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { Login } from './components/Login';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ContactModal } from './components/ContactModal';
 import { ScannerModal } from './components/ScannerModal';
 import { Sidebar } from './components/Sidebar';
-import { AddressSearch } from './components/AddressSearch';
-import { MapBounds } from './components/MapBounds';
 import { ContactsList } from './components/ContactsList';
 import { BoilerDetailModal } from './components/BoilerDetailModal';
 import { ServicesList } from './components/ServicesList';
@@ -70,6 +50,7 @@ import { ServiceDetailModal } from './components/ServiceDetailModal';
 import { BoilerFormFields } from './components/BoilerFormFields';
 import { BG_URL } from './config/constants';
 import { Toaster, toast } from 'sonner';
+import { removeDiacritics } from './utils/textUtils'; // CHANGED: imported from textUtils
 
 // Fix for default marker icons in Leaflet with Vite
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -83,7 +64,7 @@ let DefaultIcon = L.icon({
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
-import Tesseract from 'tesseract.js';
+
 import { 
   auth, 
   db, 
@@ -109,16 +90,13 @@ import {
   getDownloadURL,
   uploadBytes
 } from 'firebase/storage';
-import { Html5Qrcode } from 'html5-qrcode';
+
 import { AppState, Customer, Boiler, ServiceRecord, ServiceStatus, Contact } from './types';
 import { Settings } from './components/Settings';
 import { PublicBookingForm } from './components/PublicBookingForm';
 
 // --- Helper Functions ---
 
-const removeDiacritics = (str: string) => {
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-};
 
 const trimCanvas = (canvas: HTMLCanvasElement) => {
   const ctx = canvas.getContext('2d');
@@ -201,7 +179,8 @@ export default function App() {
     deleteCustomer,
     deleteBoiler,
     deleteContact,
-    deleteService
+    deleteService,
+    mergeCustomers
   } = useAppData(user);
 
   useEffect(() => {
@@ -210,6 +189,14 @@ export default function App() {
   }, [data.bookings, setBadge]);
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [initialCustomerSearch, setInitialCustomerSearch] = useState('');
+
+  const handleSetActiveTab = (tab: string) => {
+    if (tab !== 'customers' && tab !== 'customerDetail') {
+      setInitialCustomerSearch('');
+    }
+    setActiveTab(tab);
+  };
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [activeServiceBoilerId, setActiveServiceBoilerId] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
@@ -382,6 +369,7 @@ export default function App() {
       setEditingServiceId(null);
     } catch (error) {
       // Error handled in hook
+      throw error; // FIXED
     }
   };
 
@@ -444,7 +432,6 @@ export default function App() {
     try {
       if (customerToDeleteId) {
         const id = customerToDeleteId;
-        console.log('Deleting customer:', id);
         setCustomerToDeleteId(null);
         setIsDeleteConfirmOpen(false);
         setIsCustomerModalOpen(false);
@@ -459,7 +446,6 @@ export default function App() {
         }
       } else if (boilerToDeleteId) {
         const id = boilerToDeleteId;
-        console.log('Deleting boiler:', id);
         setBoilerToDeleteId(null);
         setIsDeleteConfirmOpen(false);
         setIsBoilerModalOpen(false);
@@ -469,7 +455,6 @@ export default function App() {
         toast.success('Zariadenie bolo odstránené');
       } else if (contactToDeleteId) {
         const id = contactToDeleteId;
-        console.log('Deleting contact:', id);
         setContactToDeleteId(null);
         setIsDeleteConfirmOpen(false);
         setIsContactModalOpen(false);
@@ -479,7 +464,6 @@ export default function App() {
         toast.success('Kontakt bol odstránený');
       } else if (serviceToDeleteId) {
         const id = serviceToDeleteId;
-        console.log('Deleting service:', id);
         setServiceToDeleteId(null);
         setIsDeleteConfirmOpen(false);
         setSelectedServiceId(null);
@@ -545,6 +529,10 @@ export default function App() {
             customers={data.customers} 
             services={data.services}
             onSelectCustomer={handleSelectCustomer} 
+            onNavigateToCustomersWithSearch={(searchVal) => {
+              setInitialCustomerSearch(searchVal);
+              setActiveTab('customers');
+            }}
           />
         );
       case 'bookings':
@@ -565,6 +553,8 @@ export default function App() {
               setIsCustomerModalOpen(true);
             }}
             onDeleteCustomer={handleDeleteCustomer}
+            onMergeCustomers={mergeCustomers}
+            initialSearch={initialCustomerSearch}
           />
         );
       case 'services':
@@ -677,7 +667,7 @@ export default function App() {
 
         <Sidebar 
           activeTab={activeTab === 'customerDetail' || activeTab === 'serviceForm' ? 'customers' : activeTab} 
-          setActiveTab={setActiveTab} 
+          setActiveTab={handleSetActiveTab} 
           isVisible={shouldShowSidebar}
         />
         

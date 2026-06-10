@@ -84,8 +84,13 @@ export const onBookingConfirmed = onDocumentUpdated(
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
-      } catch (error) {
-        logger.error("Error in onBookingConfirmed:", error);
+      } catch (error: any) {
+        // CHANGED: If API throws 404 error, log and continue, do not crash
+        if (error && (error.code === 404 || error.status === 404)) {
+          logger.warn("Google Calendar API returned 404 (calendar or event not found). Continuing...", error);
+        } else {
+          logger.error("Error in onBookingConfirmed:", error);
+        }
       }
     }
   }
@@ -140,8 +145,13 @@ export const onBookingRescheduled = onDocumentUpdated(
         });
 
         logger.info(`Calendar event ${after.calendarEventId} updated successfully.`);
-      } catch (error) {
-        logger.error(`Error in onBookingRescheduled for event ${after.calendarEventId}:`, error);
+      } catch (error: any) {
+        // CHANGED: If API throws 404 error, log and continue, do not crash
+        if (error && (error.code === 404 || error.status === 404)) {
+          logger.warn(`Google Calendar API returned 404 for event ${after.calendarEventId} in booking ${event.params.bookingId}. Continuing...`, error);
+        } else {
+          logger.error(`Error in onBookingRescheduled for event ${after.calendarEventId}:`, error);
+        }
       }
     }
   }
@@ -153,6 +163,11 @@ export const getBlockedSlots = onCall(
     region: "us-central1"
   },
   async (request) => {
+    // CHANGED: Auth check added to prevent unauthenticated access
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
     const { dateFrom, dateTo } = request.data;
     // dateFrom, dateTo: "YYYY-MM-DD" strings
 
@@ -175,20 +190,30 @@ export const getBlockedSlots = onCall(
       const allEvents: { start: string; end: string }[] = [];
 
       for (const calendarId of calendarIds) {
-        const response = await calendar.events.list({
-          calendarId,
-          timeMin,
-          timeMax,
-          singleEvents: true,
-          orderBy: 'startTime'
-        });
+        try {
+          const response = await calendar.events.list({
+            calendarId,
+            timeMin,
+            timeMax,
+            singleEvents: true,
+            orderBy: 'startTime'
+          });
 
-        const events = response.data.items || [];
-        for (const event of events) {
-          const start = event.start?.dateTime || event.start?.date;
-          const end = event.end?.dateTime || event.end?.date;
-          if (start && end) {
-            allEvents.push({ start, end });
+          const events = response.data.items || [];
+          for (const event of events) {
+            const start = event.start?.dateTime || event.start?.date;
+            const end = event.end?.dateTime || event.end?.date;
+            if (start && end) {
+              allEvents.push({ start, end });
+            }
+          }
+        } catch (error: any) {
+          // CHANGED: If API throws 404 error, log and continue, do not crash
+          if (error && (error.code === 404 || error.status === 404)) {
+            logger.warn(`Google Calendar API returned 404 for calendar ${calendarId}. Continuing...`, error);
+          } else {
+            logger.error(`Error listing events for calendar ${calendarId}:`, error);
+            throw error;
           }
         }
       }
@@ -210,6 +235,10 @@ export const onNewBooking = onDocumentCreated(
     const booking = event.data?.data();
     if (!booking) return;
 
+    // CHANGED: Sanitize potential untrusted inputs (booking.name and booking.phone)
+    const name = typeof booking.name === "string" ? booking.name.trim().slice(0, 50) : "";
+    const phone = typeof booking.phone === "string" ? booking.phone.trim().slice(0, 50) : "";
+
     try {
       const tokensSnap = await db.collection('pushTokens').get();
       if (tokensSnap.empty) return;
@@ -221,7 +250,7 @@ export const onNewBooking = onDocumentCreated(
             token,
             notification: {
               title: 'Nová objednávka',
-              body: `${booking.name} – ${booking.preferredDate} o ${booking.preferredTime}`
+              body: `${name} – ${booking.preferredDate} o ${booking.preferredTime}`
             },
             webpush: {
               notification: {

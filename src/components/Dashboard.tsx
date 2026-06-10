@@ -31,17 +31,82 @@ interface DashboardProps {
   customers: Customer[];
   services: ServiceRecord[];
   onSelectCustomer: (id: string) => void;
+  onNavigateToCustomersWithSearch: (search: string) => void;
 }
 
 export const Dashboard = React.memo(({ 
   boilers, 
   customers, 
   services,
-  onSelectCustomer 
+  onSelectCustomer,
+  onNavigateToCustomersWithSearch
 }: DashboardProps) => {
   const today = new Date();
   const [activeFilter, setActiveFilter] = useState<BoilerStatus | null>(null);
   const [showAllOverdue, setShowAllOverdue] = useState(false);
+  
+  // DRILL-DOWN state
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [popoverAnchor, setPopoverAnchor] = useState<{ x: number, y: number } | null>(null);
+
+  // DRILL-DOWN close listeners
+  React.useEffect(() => {
+    if (!selectedBrand) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const popoverEl = document.getElementById('brand-drilldown-popover');
+      if (popoverEl && !popoverEl.contains(e.target as Node)) {
+        const isChartClick = (e.target as HTMLElement).closest('.recharts-wrapper');
+        if (!isChartClick) {
+          setSelectedBrand(null);
+          setPopoverAnchor(null);
+        }
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedBrand(null);
+        setPopoverAnchor(null);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedBrand]);
+
+  // DRILL-DOWN memo for brand customers
+  const brandCustomers = useMemo(() => {
+    if (!selectedBrand) return [];
+    return customers.filter(c => {
+      const hasLocalBoilers = (c as any).boilers?.some((b: any) => b.brand === selectedBrand);
+      if (hasLocalBoilers) return true;
+      return boilers.some(b => b.customerId === c.id && b.brand === selectedBrand);
+    });
+  }, [customers, boilers, selectedBrand]);
+
+  // DRILL-DOWN helper for city extraction
+  const getCustomerCity = (customer: Customer) => {
+    const customerBoilers = boilers.filter(b => b.customerId === customer.id);
+    const primaryAddress = customerBoilers[0]?.address || '';
+    if (!primaryAddress) return 'Neznáme mesto';
+    const formatted = formatAddress(primaryAddress);
+    const parts = formatted.split(',');
+    return parts[parts.length - 1]?.trim() || formatted;
+  };
+
+  // DRILL-DOWN clamp anchor position for popover
+  const clampAnchor = useMemo(() => {
+    if (!popoverAnchor) return null;
+    const width = 288; // w-72 is 18rem = 288px
+    const height = 350; // estimate max height
+    
+    const x = Math.max(16, Math.min(popoverAnchor.x - 144, window.innerWidth - width - 16));
+    const y = Math.max(16, Math.min(popoverAnchor.y + 12, window.innerHeight - height - 16));
+    
+    return { x, y };
+  }, [popoverAnchor]);
   
   const mapCenter = useMemo<[number, number]>(() => [48.6690, 19.6990], []);
   const mapZoom = 7;
@@ -365,6 +430,17 @@ export const Dashboard = React.memo(({
                   dataKey="value"
                   label={renderCustomLabel}
                   labelLine={false}
+                  className="cursor-pointer"
+                  onClick={(data, index, event) => {
+                    // DRILL-DOWN
+                    if (selectedBrand === data.name) {
+                      setSelectedBrand(null);
+                      setPopoverAnchor(null);
+                    } else {
+                      setSelectedBrand(data.name);
+                      setPopoverAnchor({ x: event.clientX, y: event.clientY });
+                    }
+                  }}
                 >
                   {brandData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={`url(#gradient-brand-${index})`} stroke="rgba(255,255,255,0.1)" />
@@ -477,6 +553,81 @@ export const Dashboard = React.memo(({
           </MapContainer>
         </div>
       </div>
+
+      {/* DRILL-DOWN Popover markup */}
+      {selectedBrand && clampAnchor && (
+        <div 
+          id="brand-drilldown-popover"
+          className="fixed bg-[#1D1D20]/95 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-2xl w-72 z-50 text-white space-y-3"
+          style={{
+            left: `${clampAnchor.x}px`,
+            top: `${clampAnchor.y}px`
+          }}
+        >
+          {/* Popover Header */}
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-lg font-bold uppercase tracking-wider text-[#3A87AD]">{selectedBrand}</h3>
+              <p className="text-xs text-white/50">
+                {brandCustomers.length} {brandCustomers.length === 1 ? 'kotol' : brandCustomers.length >= 2 && brandCustomers.length <= 4 ? 'kotly' : 'kotlov'}
+              </p>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => { setSelectedBrand(null); setPopoverAnchor(null); }}
+              className="text-white/40 hover:text-white transition-colors text-xs font-bold font-mono px-1.5 py-0.5 bg-white/5 rounded-md"
+            >
+              ESC/X
+            </button>
+          </div>
+
+          {/* Customer List */}
+          <div className="max-h-[180px] overflow-y-auto space-y-1.5 pr-1 divide-y divide-white/5">
+            {brandCustomers.length > 0 ? (
+              brandCustomers.slice(0, 5).map(customer => {
+                const city = getCustomerCity(customer);
+                return (
+                  <div 
+                    key={customer.id}
+                    onClick={() => {
+                      setSelectedBrand(null);
+                      setPopoverAnchor(null);
+                      onSelectCustomer(customer.id);
+                    }}
+                    className="pt-1.5 first:pt-0 group cursor-pointer flex items-center justify-between hover:bg-white/5 p-1 rounded-lg transition-all"
+                  >
+                    <div className="flex flex-col truncate pr-2">
+                      <span className="text-sm font-semibold truncate text-white/90 group-hover:text-white transition-colors">{customer.name}</span>
+                      <span className="text-[10px] text-white/40 truncate flex items-center gap-1">
+                        <MapPin size={10} /> {city}
+                      </span>
+                    </div>
+                    <ChevronRight size={14} className="text-white/30 group-hover:text-white/60 transition-colors flex-shrink-0" />
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-xs text-white/30 italic p-2 text-center">Žiadni priradení zákazníci</p>
+            )}
+          </div>
+
+          {/* Button bottom */}
+          {brandCustomers.length > 5 && (
+            <button
+              type="button"
+              onClick={() => {
+                const brand = selectedBrand;
+                setSelectedBrand(null);
+                setPopoverAnchor(null);
+                onNavigateToCustomersWithSearch(brand);
+              }}
+              className="w-full py-2 bg-[#3A87AD]/20 hover:bg-[#3A87AD]/35 border border-[#3A87AD]/30 text-[#3A87AD] font-bold text-xs uppercase tracking-wider rounded-xl transition-all"
+            >
+              Zobraziť všetkých ({brandCustomers.length})
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 });

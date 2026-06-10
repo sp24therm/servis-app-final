@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { LayoutDashboard, Users, History, Phone, Settings as SettingsIcon, LogOut, User as UserIcon, ChevronDown, Inbox, Bell, CheckCircle2 } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { onSnapshot, doc, collection, query, where } from 'firebase/firestore';
+import { onSnapshot, doc, collection, query, where, limit } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LOGO_URL } from '../config/constants';
 import { PriceList } from './PriceList';
@@ -25,7 +25,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isVisible }: SidebarProps) =>
   useEffect(() => {
     if (!user) return;
 
-    const q = query(collection(db, 'bookings'), where('status', '==', 'pending'));
+    const q = query(collection(db, 'bookings'), where('status', '==', 'pending'), limit(100)); // CHANGED: Added limit(100) constraint
     const unsub = onSnapshot(q, (snapshot) => {
       setPendingCount(snapshot.size);
     }, (error) => {
