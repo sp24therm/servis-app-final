@@ -3,11 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Global default-deny rule
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     // ===============================================================
     // Helper Functions
     // ===============================================================
@@ -18,10 +13,25 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
         ((request.auth.token.email == "sp24therm@gmail.com" || request.auth.token.email == "scepanpeter@gmail.com") && request.auth.token.email_verified == true)
       );
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll(['name', 'phone', 'status', 'createdAt', 'preferredDate', 'preferredTime', 'serviceType']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.phone is string && data.phone.size() > 0 && data.phone.size() < 20 &&
+             data.status == 'pending' &&
+             data.createdAt is string &&
+             data.preferredDate is string && data.preferredDate.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.preferredTime is string && data.preferredTime.matches("^\\d{2}:\\d{2}$");
+    }
+
+    function isValidSlot(data) {
+      return data.keys().hasAll(['date', 'time']) &&
+             data.date is string && data.time is string;
     }
 
     // ===============================================================
@@ -47,23 +57,34 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Bookings: public web môže CREATE (write) nový dokument BEZ autentifikácie. 
+    // Bookings: web stránka (verejnosť) môže CREATE validnú rezerváciu bez autentifikácie.
     // Nikto nemôže READ bookings bez auth. Admin (akýkoľvek autentifikovaný user) môže READ + UPDATE + DELETE.
     match /bookings/{bookingId} {
-      allow create: if true;
+      allow create: if isValidBooking(request.resource.data);
       allow read, update, delete: if isAuthenticated();
     }
 
-    // Leads: public web môže CREATE bez auth. Len admin môže READ.
+    // Leads: web stránka (2-krokový formulár) môže CREATE bez auth. Len admin číta/upravuje/maže.
     match /leads/{leadId} {
       allow create: if true;
       allow read, update, delete: if isAdmin();
     }
 
-    // Settings: len autentifikovaný admin. READ + UPDATE.
+    // Settings/global: verejne čitateľné (web potrebuje isWinter pre sezónne zobrazenie), zapisuje len admin.
+    match /settings/global {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Ostatné settings dokumenty: len admin.
     match /settings/{settingId} {
-      allow read, update: if isAdmin();
-      allow create, delete: if isAdmin();
+      allow read, write: if isAdmin();
+    }
+
+    // Error Codes: verejne čitateľné (diagnostika na webe), zapisuje len admin.
+    match /errorCodes/{errorCodeId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // PushTokens: autentifikovaný user môže CREATE vlastný token. Nikto iný nečíta.
@@ -71,10 +92,17 @@ service cloud.firestore {
       allow create: if isAuthenticated() && tokenId == request.auth.uid;
     }
 
-    // Slots: public web môže READ (na kontrolu dostupnosti). Len Cloud Functions/admin píše.
+    // Slots: web stránka (verejnosť) READ na kontrolu dostupnosti, CREATE validného slotu.
+    // Update/delete len admin.
     match /slots/{slotId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isValidSlot(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    // Global default-deny rule pre všetko ostatné
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
